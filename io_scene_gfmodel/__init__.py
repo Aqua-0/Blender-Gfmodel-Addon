@@ -1,10 +1,10 @@
 bl_info = {
     "name": "GFModel (GFL2) Importer",
-    "author": "OpenAI (GPT-5.2) + community formats (SPICA/Ohana reference)",
+    "author": "Aqua",
     "version": (0, 1, 0),
     "blender": (4, 0, 0),
     "location": "File > Import > GFModel (GFL2) (.gfmodel/.bin/CP/CM)",
-    "description": "Import GFL2 GFModel containers (CP/CM) with textures and skeletal animations",
+    "description": "Import GFL2 GFModel containers (CP/CM) with textures and skeletal animations with Spica/Ohana Refrence",
     "category": "Import-Export",
 }
 
