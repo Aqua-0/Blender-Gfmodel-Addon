@@ -1,4 +1,4 @@
-"""Helpers to build and persist a generalized archive patch plan (Blender-side)."""
+
 
 from __future__ import annotations
 
@@ -30,11 +30,11 @@ def make_archive_entry_plan_and_payload(
     entry_bytes: bytes,
     pre_steps: Optional[List[dict]] = None,
 ) -> Tuple[PatchPlan, bytes]:
-    """Build a plan rooted at a GARC entry, and return (plan, exportable_payload_bytes).
 
-    `pre_steps` can be used to anchor the search within a user-selected sub-blob
-    (e.g. mini index / container index), before locating an exportable GFModel blob.
-    """
+
+
+
+
     pre = list(pre_steps or [])
     sel = bytes(entry_bytes)
     for st in pre:

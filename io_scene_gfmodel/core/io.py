@@ -1,19 +1,20 @@
-"""Binary/container parsing for GFModel-related formats.
 
-This module handles:
-- CP/CM (2-byte) container wrappers
-- Optional LZ11 decompression
-- GFModel pack/model/texture/material/shader parsing
-- GFMotion parsing (skeletal + UV/material tracks)
 
-No Blender registration logic lives here.
-"""
+
+
+
+
+
+
+
+
 
 from __future__ import annotations
 
 import struct
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from .binlinker import looks_like_binlinker, parse_binlinker
 from .math_compat import Vector
 from .motion import _parse_gf_motion
 from .pica import (
@@ -182,14 +183,14 @@ def _lzss_ninty_decompress(data: bytes) -> bytes:
 
 
 def _looks_like_lz11(data: bytes) -> bool:
-                                                                               
-                                                                                                  
+
+
     if len(data) < 4 or data[0] != 0x11:
         return False
     decoded_len = data[1] | (data[2] << 8) | (data[3] << 16)
     if decoded_len <= 0:
         return False
-                                                                            
+
     if decoded_len <= len(data):
         return False
     return True
@@ -200,7 +201,7 @@ def _gf_skip_padding16(r: _BinReader) -> None:
 
 
 def _gf_read_hash_name(r: _BinReader) -> str:
-    _ = r.u32()        
+    _ = r.u32()
     return r.byte_len_string()
 
 
@@ -225,7 +226,7 @@ def _read_gf_section(r: _BinReader) -> Tuple[str, int]:
 
 def _parse_gf_texture(data: bytes) -> _GFTexture:
     r = _BinReader(data)
-    _magic = r.u32()              
+    _magic = r.u32()
     _count = r.u32()
     _sect_magic, _sect_len = _read_gf_section(r)
     tex_len = r.u32()
@@ -252,14 +253,14 @@ def _parse_gf_material(data: bytes, offset: int) -> Tuple[_GFMaterial, int]:
     vtx_shader = _gf_read_hash_name(r)
     frag_shader = _gf_read_hash_name(r)
 
-    lut_hashes = (r.u32(), r.u32(), r.u32())              
-    r.skip(4)           
+    lut_hashes = (r.u32(), r.u32(), r.u32())
+    r.skip(4)
 
     bump_texture = r.s8()
     const_assignments = [r.u8() for _ in range(6)]
-    r.skip(1)           
+    r.skip(1)
 
-                                                                                                                   
+
     colors_rgba = [tuple(r.u8() for _ in range(4)) for _ in range(12)]
     edge_type = int(r.u32())
     id_edge_enable = int(r.u32())
@@ -287,7 +288,7 @@ def _parse_gf_material(data: bytes, offset: int) -> Tuple[_GFMaterial, int]:
         scale = _gf_read_vec2(r)
         rotation = r.f32()
         translation = _gf_read_vec2(r)
-        sampler_words = [r.u32() for _ in range(5)]                     
+        sampler_words = [r.u32() for _ in range(5)]
         tex_units.append(
             _GFTextureUnit(
                 name=tex_name,
@@ -311,7 +312,7 @@ def _parse_gf_material(data: bytes, offset: int) -> Tuple[_GFMaterial, int]:
 
     alpha_test_enabled = False
     alpha_test_ref = 0.0
-    alpha_test_func = 1                         
+    alpha_test_func = 1
     blend_func: Optional[dict] = None
     blend_color_rgba: Optional[Tuple[int, int, int, int]] = None
     stencil_test: Optional[dict] = None
@@ -326,14 +327,14 @@ def _parse_gf_material(data: bytes, offset: int) -> Tuple[_GFMaterial, int]:
     for reg, params in _pica_read_commands(commands_u32):
         p = params[0]
         regs[reg] = p
-        if reg == 0x0040:                             
+        if reg == 0x0040:
             face_culling = int(p & 3)
-        elif reg == 0x0104:                            
+        elif reg == 0x0104:
             alpha_test_enabled = (p & 1) != 0
             ref = (p >> 8) & 0xFF
             alpha_test_ref = float(ref) / 255.0
             alpha_test_func = (p >> 4) & 7
-        elif reg == 0x0101:                     
+        elif reg == 0x0101:
             blend_func = {
                 "color_eq": (p >> 0) & 7,
                 "alpha_eq": (p >> 8) & 7,
@@ -342,14 +343,14 @@ def _parse_gf_material(data: bytes, offset: int) -> Tuple[_GFMaterial, int]:
                 "alpha_src": (p >> 24) & 0xF,
                 "alpha_dst": (p >> 28) & 0xF,
             }
-        elif reg == 0x0103:                      
+        elif reg == 0x0103:
             blend_color_rgba = (
                 int((p >> 0) & 0xFF),
                 int((p >> 8) & 0xFF),
                 int((p >> 16) & 0xFF),
                 int((p >> 24) & 0xFF),
             )
-        elif reg == 0x0105:                       
+        elif reg == 0x0105:
             stencil_test = {
                 "enabled": (p & 1) != 0,
                 "func": int((p >> 4) & 7),
@@ -357,13 +358,13 @@ def _parse_gf_material(data: bytes, offset: int) -> Tuple[_GFMaterial, int]:
                 "ref": int((p >> 16) & 0xFF),
                 "mask": int((p >> 24) & 0xFF),
             }
-        elif reg == 0x0106:                     
+        elif reg == 0x0106:
             stencil_op = {
                 "fail": int((p >> 0) & 7),
                 "zfail": int((p >> 4) & 7),
                 "zpass": int((p >> 8) & 7),
             }
-        elif reg == 0x0107:                           
+        elif reg == 0x0107:
             depth_test_enabled = (p & 1) != 0
             depth_test_func = int((p >> 4) & 7)
             color_write_mask = (
@@ -433,15 +434,15 @@ def _parse_gf_shader(data: bytes, offset: int) -> Tuple[_GFShader, int]:
     start = r.tell
 
     name = r.padded_string(0x40)
-    r.skip(4)        
-    r.skip(4)         
+    r.skip(4)
+    r.skip(4)
     _gf_skip_padding16(r)
 
     cmd_len = r.u32()
-    r.skip(4)                  
-    r.skip(4)                 
-    r.skip(4)           
-    r.padded_string(0x40)            
+    r.skip(4)
+    r.skip(4)
+    r.skip(4)
+    r.padded_string(0x40)
 
     cmd_words = [r.u32() for _ in range(cmd_len // 4)]
 
@@ -499,9 +500,9 @@ def _parse_gf_mesh(data: bytes, offset: int) -> Tuple[List[_GFSubMesh], int]:
     mesh_face_count = int(r.u32())
     mesh_weight_max = int(r.u32())
 
-                                                                                               
-                                                                                              
-                                                                       
+
+
+
     mesh_hdr_end = start + 0x80
     sect_end = start + int(sect_len)
     if r.tell < mesh_hdr_end and mesh_hdr_end <= sect_end:
@@ -517,8 +518,8 @@ def _parse_gf_mesh(data: bytes, offset: int) -> Tuple[List[_GFSubMesh], int]:
         _pad = r.u32()
         cmd_list_u32_offs.append(int(r.tell))
         cmd_list_lens_u32.append(int(commands_len // 4))
-                                                                                         
-                                                                               
+
+
         cmd_u32 = [int(r.u32()) for _ in range(int(commands_len // 4))]
         cmd_lists.append(cmd_u32)
         if cmd_index >= commands_count - 1:
@@ -559,7 +560,7 @@ def _parse_gf_mesh(data: bytes, offset: int) -> Tuple[List[_GFSubMesh], int]:
     scales = (1.0 / 127.0, 1.0 / 255.0, 1.0 / 32767.0, 1.0)
 
     submeshes: List[_GFSubMesh] = []
-                                                                                             
+
     mesh_index = -1
     for face_index, info in enumerate(sub_infos):
         (
@@ -601,17 +602,17 @@ def _parse_gf_mesh(data: bytes, offset: int) -> Tuple[List[_GFSubMesh], int]:
 
         for reg, params in _pica_read_commands(enable_cmds):
             p = params[0]
-            if reg == 0x0201:                            
+            if reg == 0x0201:
                 buffer_formats |= p << 0
-            elif reg == 0x0202:        
+            elif reg == 0x0202:
                 buffer_formats |= p << 32
-            elif reg == 0x0204:                         
+            elif reg == 0x0204:
                 buffer_attributes |= p
-            elif reg == 0x0205:                         
+            elif reg == 0x0205:
                 buffer_attributes |= (p & 0xFFFF) << 32
                 vertex_stride = (p >> 16) & 0xFF
                 attrs_count = (p >> 28) & 0xF
-            elif reg == 0x0232:                     
+            elif reg == 0x0232:
                 fixed_index = int(p)
             elif reg == 0x0233:
                 w0, w1, w2 = fixed_words[fixed_index]
@@ -622,7 +623,7 @@ def _parse_gf_mesh(data: bytes, offset: int) -> Tuple[List[_GFSubMesh], int]:
             elif reg == 0x0235:
                 w0, w1, w2 = fixed_words[fixed_index]
                 fixed_words[fixed_index] = (w0, w1, p)
-            elif reg == 0x0242:                
+            elif reg == 0x0242:
                 attrs_total = int(p) + 1
             elif reg == 0x02BB:
                 buffer_perm |= p << 0
@@ -654,7 +655,7 @@ def _parse_gf_mesh(data: bytes, offset: int) -> Tuple[List[_GFSubMesh], int]:
                 fmt = int(attr_fmt & 3)
                 elements = int((attr_fmt >> 2) + 1)
                 scale = scales[fmt]
-                if int(attr_name) == 7:                               
+                if int(attr_name) == 7:
                     scale = 1.0
                 attributes.append(
                     _PICAAttribute(
@@ -691,7 +692,7 @@ def _parse_gf_mesh(data: bytes, offset: int) -> Tuple[List[_GFSubMesh], int]:
         if pad_len < 0:
             pad_len = 0
         index_pad = r.read(pad_len) if pad_len else b""
-                                                                      
+
         try:
             r.seek(idx_start + idx_len)
         except Exception:
@@ -744,7 +745,7 @@ def _parse_gf_mesh(data: bytes, offset: int) -> Tuple[List[_GFSubMesh], int]:
 
 def _parse_gf_model(data: bytes, offset: int, name: str) -> Tuple[_GFModel, int]:
     r = _BinReader(data, offset)
-    _magic = r.u32()              
+    _magic = r.u32()
     _sections = r.u32()
     _gf_skip_padding16(r)
 
@@ -823,7 +824,7 @@ def _parse_gf_model(data: bytes, offset: int, name: str) -> Tuple[_GFModel, int]
     submeshes_all: List[_GFSubMesh] = []
     for mesh_index in range(len(mesh_names)):
         sms, new_off = _parse_gf_mesh(data, r.tell)
-                                                                  
+
         for sm in sms:
             try:
                 sm.mesh_index = int(mesh_index)
@@ -853,7 +854,7 @@ def _parse_gf_model(data: bytes, offset: int, name: str) -> Tuple[_GFModel, int]
 def _parse_gf_model_pack(
     data: bytes,
 ) -> Tuple[List[_GFModel], List[_GFTexture], List[_GFShader]]:
-                                                                                                   
+
     models: List[_GFModel] = []
     textures: List[_GFTexture] = []
     shaders: List[_GFShader] = []
@@ -862,7 +863,7 @@ def _parse_gf_model_pack(
         return models, textures, shaders
 
     r = _BinReader(data)
-    _magic = r.u32()              
+    _magic = r.u32()
     counts = [r.u32() for _ in range(5)]
     pointers_addr = r.tell
 
@@ -870,7 +871,7 @@ def _parse_gf_model_pack(
     if pointers_addr + total_ptrs * 4 > len(data):
         return models, textures, shaders
 
-    position = 0                                                                 
+    position = 0
     sect_ptr_base = pointers_addr
 
     for sect in range(5):
@@ -880,7 +881,7 @@ def _parse_gf_model_pack(
             if ptr_off == 0 or ptr_off >= len(data):
                 continue
 
-                                                                 
+
             if ptr_off + 1 > len(data):
                 continue
             name_len = data[ptr_off]
@@ -935,7 +936,30 @@ def _load_any(
     motions: List[_GFMotion] = []
     shaders: List[_GFShader] = []
 
-                                     
+
+    if looks_like_binlinker(data):
+        try:
+            bl = parse_binlinker(data)
+            for i in range(int(bl.file_count)):
+                try:
+                    ent = bl.extract(data, i)
+                except Exception:
+                    continue
+                m, t, a, s = _load_any(ent)
+                models.extend(m)
+                textures.extend(t)
+                motions.extend(a)
+                shaders.extend(s)
+
+
+
+            if models or textures or motions or shaders:
+                return models, textures, motions, shaders
+        except Exception:
+
+            pass
+
+
     if len(data) >= 4 and 65 <= data[0] <= 90 and 65 <= data[1] <= 90:
         magic, entries = _parse_pkmn_container(data)
         if magic == "CP" and len(entries) >= 2:
@@ -957,12 +981,12 @@ def _load_any(
         return models, textures, motions, shaders
 
     u0 = struct.unpack_from("<I", data, 0)[0]
-                                                       
-                                                                                                            
-                                                                                                               
-                                                                                                  
-     
-                                                                                                
+
+
+
+
+
+
     if u0 == 0x15052616 and len(data) >= 16:
         try:
             section_count = struct.unpack_from("<I", data, 4)[0]
@@ -995,9 +1019,9 @@ def _load_any(
         shaders.extend(s)
         return models, textures, motions, shaders
     if u0 == 0x15041213:
-                                                                                         
-                                                                                            
-                                                                  
+
+
+
         try:
             sect8 = ""
             if len(data) >= 0x10:
@@ -1012,7 +1036,7 @@ def _load_any(
                 sh, _ = _parse_gf_shader(data, 0)
                 shaders.append(sh)
             else:
-                                                           
+
                 try:
                     textures.append(_parse_gf_texture(data))
                 except Exception:
@@ -1026,11 +1050,11 @@ def _load_any(
         models.append(model)
         return models, textures, motions, shaders
     if u0 == 0x00060000:
-                                                                                              
+
         motions.append(_parse_gf_motion(data, index=len(motions)))
         return models, textures, motions, shaders
 
-                                                       
+
     anims_count = u0
     if 0 < anims_count < 4096 and len(data) >= 4 + anims_count * 4:
         r = _BinReader(data)

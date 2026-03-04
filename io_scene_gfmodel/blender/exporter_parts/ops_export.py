@@ -1,4 +1,4 @@
-"""Export operator definitions."""
+
 
 from __future__ import annotations
 
@@ -301,6 +301,19 @@ class EXPORT_SCENE_OT_gfmodel(bpy.types.Operator, ExportHelper):
         default="CLAMP_BY_WEIGHT",
         options={"HIDDEN"},
     )
+    grow_buffers_patch_all_tagged_submeshes: BoolProperty(
+        name="Grow Buffers Patch All Tagged Submeshes",
+        default=False,
+        options={"HIDDEN"},
+        description="Internal: patch all imported/tagged submeshes (gfmodel_submesh_index) instead of only the active one",
+    )
+
+    grow_buffers_auto_route_new_meshes: BoolProperty(
+        name="Grow Buffers Auto-Route New Meshes",
+        default=False,
+        options={"HIDDEN"},
+        description="Internal: include untagged meshes in the import collection and route their triangles into existing submesh slots by material/palette",
+    )
 
     @staticmethod
     def _build_export_loop_stream(
@@ -316,20 +329,20 @@ class EXPORT_SCENE_OT_gfmodel(bpy.types.Operator, ExportHelper):
         List[int],
         int,
     ]:
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
         mesh.calc_loop_triangles()
-                                                                                       
-                                                                                       
-                                                         
+
+
+
         try:
             if hasattr(mesh, "calc_normals_split"):
-                mesh.calc_normals_split()                              
+                mesh.calc_normals_split()
             elif hasattr(mesh, "calc_normals"):
-                mesh.calc_normals()                              
+                mesh.calc_normals()
             else:
-                                                                                  
+
                 try:
-                    mesh.update()                              
+                    mesh.update()
                 except Exception:
                     pass
         except Exception:
@@ -360,12 +373,12 @@ class EXPORT_SCENE_OT_gfmodel(bpy.types.Operator, ExportHelper):
         remap: Dict[Tuple[int, Tuple[int, int]], int] = {}
         max_weights = 0
 
-                                                                
+
         uv_first: List[Optional[Tuple[float, float]]] = [None] * len(mesh.vertices)
         uv_split: List[bool] = [False] * len(mesh.vertices)
 
         def uv_q(uv: Tuple[float, float]) -> Tuple[int, int]:
-                                                
+
             return (int(round(float(uv[0]) * 1e6)), int(round(float(uv[1]) * 1e6)))
 
         for tri in mesh.loop_triangles:
@@ -418,8 +431,8 @@ class EXPORT_SCENE_OT_gfmodel(bpy.types.Operator, ExportHelper):
                     packed_vertices.append(pv)
                 indices.append(int(idx))
 
-                                                                                               
-                                                                                  
+
+
         if max_weights == 0:
             try:
                 if any(int(fa.name) in (7, 8) for fa in (sm.fixed_attributes or [])):

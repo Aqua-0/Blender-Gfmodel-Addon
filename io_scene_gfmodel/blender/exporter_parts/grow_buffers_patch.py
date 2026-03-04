@@ -1,4 +1,4 @@
-"""Grow Buffers patching helpers (Tier-2), including material routing and UV strategy."""
+
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def _patch_pack_grow_buffers_tris(
     allow_palette_rebuild: bool = True,
     allow_palette_split: bool = True,
 ) -> Tuple[bytes, int]:
-    """Tier-2: grow allocated vtx/idx buffers by rewriting the GFModel blob and pack."""
+
     if not tagged:
         raise ValueError(
             "No tagged meshes found (gfmodel_submesh_index); import via GFModel Archive and select a mesh object"
@@ -73,8 +73,8 @@ def _rgba8_bytes_from_image(
     height: int,
     allow_scale: bool,
 ) -> bytes:
-    """Return linear RGBA8 bytes from a Blender image."""
-    img.pixels[0]                 
+
+    img.pixels[0]
 
     w0, h0 = int(img.size[0]), int(img.size[1])
     if w0 <= 0 or h0 <= 0:
@@ -100,7 +100,7 @@ def _rgba8_bytes_from_image(
 
 
 def _collect_texture_overrides_by_slot(model: "_GFModel") -> Dict[str, bpy.types.Image]:
-    """Map existing GF texture names -> Blender images used by materials."""
+
     overrides: Dict[str, bpy.types.Image] = {}
     for mat_def in getattr(model, "materials", []) or []:
         mat = bpy.data.materials.get(str(getattr(mat_def, "name", "") or ""))
@@ -130,7 +130,7 @@ def _patch_pack_textures_rgba8(
     texture_mode: str,
     texture_max_size: int,
 ) -> Tuple[bytes, int]:
-    """Overwrite existing texture slots with RGBA8 bytes, without adding new slots."""
+
     if texture_mode not in ("RGBA8", "RGBA8_SAME_SIZE", "RGBA8_ORIGINAL_SIZE"):
         return pack_src, 0
 
@@ -218,7 +218,7 @@ def _collect_tris_for_material(
             obj.update_from_editmode()
     except Exception:
         pass
-    mesh: bpy.types.Mesh = obj.data                            
+    mesh: bpy.types.Mesh = obj.data
     try:
         mesh.calc_loop_triangles()
     except Exception:
@@ -231,7 +231,7 @@ def _collect_tris_for_material(
         return s
 
     target = base(str(material_name))
-                                                                                     
+
     out: List[Tuple[int, int, int, int, int, int]] = []
     for tri in getattr(mesh, "loop_triangles", []) or []:
         try:
@@ -263,7 +263,7 @@ def _collect_tris_all(
             obj.update_from_editmode()
     except Exception:
         pass
-    mesh: bpy.types.Mesh = obj.data                            
+    mesh: bpy.types.Mesh = obj.data
     try:
         mesh.calc_loop_triangles()
     except Exception:
@@ -282,12 +282,12 @@ def _apply_uv_strategy_to_mesh(
     strategy: str,
     tol: float = 1e-6,
 ) -> None:
-    """Mutate UVs on `mesh` according to `strategy`.
 
-    - `DUPLICATE`: keep per-loop UVs as-is (seams preserved; exporter may duplicate verts)
-    - `SMEAR`: force one UV per 3D vertex (collapses seams; may smear)
-    - `STITCH_TRANSLATE`: try to remove seams by translating UV islands to align (translation-only heuristic)
-    """
+
+
+
+
+
     strat = str(strategy or "DUPLICATE").upper()
     if strat == "DUPLICATE":
         return
@@ -343,7 +343,7 @@ def _apply_uv_strategy_to_mesh(
                         return False
                 return True
 
-                                                                                           
+
             face_seen: Dict[int, None] = {}
             islands: List[List[bmesh.types.BMFace]] = []
             for f in bm.faces:
@@ -376,7 +376,7 @@ def _apply_uv_strategy_to_mesh(
                     for f in isl:
                         face_to_island[int(f.index)] = int(ii)
 
-                                                  
+
                 seam_edges: List[bmesh.types.BMEdge] = []
                 for e in bm.edges:
                     if not e.is_manifold or len(e.link_faces) != 2:
@@ -399,7 +399,7 @@ def _apply_uv_strategy_to_mesh(
                             seam_edges.append(e)
                             break
 
-                                                               
+
                 adj: Dict[int, List[Tuple[int, Tuple[float, float]]]] = {
                     int(i): [] for i in range(len(islands))
                 }
@@ -481,11 +481,11 @@ def _build_temp_mesh_object_for_slot(
     tri_verts: List[Tuple[int, int, int, int, int, int]],
     weights_override_by_src_vi: Optional[Dict[int, List[Tuple[str, float]]]] = None,
 ) -> bpy.types.Object:
-    """Create a temporary object whose mesh contains only the specified triangles.
 
-    Vertex positions are baked in world space (obj.matrix_world applied). Vertex groups
-    are copied for the used vertices only.
-    """
+
+
+
+
     tmp_mesh = bpy.data.meshes.new(name)
 
     if not tri_verts:
@@ -508,7 +508,7 @@ def _build_temp_mesh_object_for_slot(
     except Exception:
         uv_src = None
 
-                                             
+
     for a, b, c, la, lb, lc in tri_verts:
         for vi in (int(a), int(b), int(c)):
             if vi not in remap:
@@ -534,7 +534,7 @@ def _build_temp_mesh_object_for_slot(
             face_uvs.append(((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)))
 
     tmp_mesh.from_pydata(verts_world, [], faces)
-                                                                                            
+
     if uv_src is not None and face_uvs:
         try:
             uv_dst = tmp_mesh.uv_layers.new(name=str(getattr(uv_src, "name", "UVMap")))
@@ -560,8 +560,8 @@ def _build_temp_mesh_object_for_slot(
 
     tmp_obj = bpy.data.objects.new(name + "_obj", tmp_mesh)
 
-                                 
-                                         
+
+
     vg_names: Dict[int, str] = {}
     try:
         for i, vg in enumerate(src_obj.vertex_groups):
@@ -612,6 +612,175 @@ def _build_temp_mesh_object_for_slot(
     return tmp_obj
 
 
+
+
+def _build_temp_mesh_object_for_sources(
+    *,
+    name: str,
+    sources: List[
+        Tuple[
+            bpy.types.Object,
+            bpy.types.Mesh,
+            List[Tuple[int, int, int, int, int, int]],
+            Optional[Dict[int, List[Tuple[str, float]]]],
+        ]
+    ],
+) -> bpy.types.Object:
+
+
+
+
+
+
+
+
+    tmp_mesh = bpy.data.meshes.new(name)
+
+    verts_world: List[Tuple[float, float, float]] = []
+    faces: List[Tuple[int, int, int]] = []
+    face_uvs: List[
+        Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]
+    ] = []
+
+    per_source: List[
+        Tuple[
+            bpy.types.Object,
+            bpy.types.Mesh,
+            Dict[int, int],
+            Optional[Dict[int, List[Tuple[str, float]]]],
+        ]
+    ] = []
+
+    for src_obj, src_mesh, tri_verts, weights_override_by_src_vi in sources:
+        if src_obj is None or getattr(src_obj, "type", "") != "MESH":
+            continue
+        if not tri_verts:
+            continue
+        try:
+            if getattr(src_obj, "mode", "") == "EDIT":
+                src_obj.update_from_editmode()
+        except Exception:
+            pass
+
+        mw = Matrix(src_obj.matrix_world)
+        uv_src = None
+        try:
+            if getattr(src_mesh, "uv_layers", None):
+                uv_src = src_mesh.uv_layers.active or src_mesh.uv_layers[0]
+        except Exception:
+            uv_src = None
+
+        remap: Dict[int, int] = {}
+        src_vs = src_mesh.vertices
+        for a, b, c, la, lb, lc in tri_verts:
+            for vi in (int(a), int(b), int(c)):
+                if vi not in remap:
+                    remap[vi] = len(verts_world)
+                    co = mw @ Vector(src_vs[vi].co)
+                    verts_world.append((float(co.x), float(co.y), float(co.z)))
+            faces.append((remap[int(a)], remap[int(b)], remap[int(c)]))
+            if uv_src is not None:
+                try:
+                    uva = uv_src.data[int(la)].uv
+                    uvb = uv_src.data[int(lb)].uv
+                    uvc = uv_src.data[int(lc)].uv
+                    face_uvs.append(
+                        (
+                            (float(uva.x), float(uva.y)),
+                            (float(uvb.x), float(uvb.y)),
+                            (float(uvc.x), float(uvc.y)),
+                        )
+                    )
+                except Exception:
+                    face_uvs.append(((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)))
+            else:
+                face_uvs.append(((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)))
+
+        per_source.append((src_obj, src_mesh, remap, weights_override_by_src_vi))
+
+    if not faces:
+        tmp_mesh.from_pydata([], [], [])
+        tmp_obj = bpy.data.objects.new(name + "_obj", tmp_mesh)
+        return tmp_obj
+
+    tmp_mesh.from_pydata(verts_world, [], faces)
+    if face_uvs:
+        try:
+            uv_dst = tmp_mesh.uv_layers.new(name="UVMap")
+            for fi, poly in enumerate(tmp_mesh.polygons):
+                if fi >= len(face_uvs):
+                    break
+                luvs = face_uvs[fi]
+                for ci, li in enumerate(poly.loop_indices):
+                    if ci >= 3:
+                        break
+                    u, v = luvs[ci]
+                    uv_dst.data[int(li)].uv = (float(u), float(v))
+        except Exception:
+            pass
+    try:
+        tmp_mesh.calc_normals()
+    except Exception:
+        pass
+    try:
+        tmp_mesh.calc_loop_triangles()
+    except Exception:
+        pass
+
+    tmp_obj = bpy.data.objects.new(name + "_obj", tmp_mesh)
+
+    dst_groups: Dict[str, bpy.types.VertexGroup] = {}
+    for src_obj, src_mesh, remap, weights_override_by_src_vi in per_source:
+        vg_names: Dict[int, str] = {}
+        try:
+            for i, vg in enumerate(src_obj.vertex_groups):
+                vg_names[int(i)] = str(vg.name)
+        except Exception:
+            vg_names = {}
+
+        src_vs = src_mesh.vertices
+        for src_vi, dst_vi in remap.items():
+            if weights_override_by_src_vi is not None:
+                ow = weights_override_by_src_vi.get(int(src_vi))
+            else:
+                ow = None
+            if ow:
+                for gname, w in ow:
+                    try:
+                        if float(w) <= 0.0:
+                            continue
+                        gname_s = str(gname)
+                        vg_dst = dst_groups.get(gname_s)
+                        if vg_dst is None:
+                            vg_dst = tmp_obj.vertex_groups.new(name=gname_s)
+                            dst_groups[gname_s] = vg_dst
+                        vg_dst.add([int(dst_vi)], float(w), "REPLACE")
+                    except Exception:
+                        continue
+                continue
+            try:
+                v = src_vs[int(src_vi)]
+            except Exception:
+                continue
+            for g in getattr(v, "groups", []) or []:
+                try:
+                    w = float(g.weight)
+                    if w <= 0.0:
+                        continue
+                    gname = vg_names.get(int(g.group))
+                    if not gname:
+                        continue
+                    vg_dst = dst_groups.get(gname)
+                    if vg_dst is None:
+                        vg_dst = tmp_obj.vertex_groups.new(name=gname)
+                        dst_groups[gname] = vg_dst
+                    vg_dst.add([int(dst_vi)], float(w), "REPLACE")
+                except Exception:
+                    continue
+
+    return tmp_obj
+
+
 def _route_source_object_to_submesh_slots(
     model: "_GFModel",
     *,
@@ -627,10 +796,10 @@ def _route_source_object_to_submesh_slots(
     Dict[str, int],
     Dict[str, List[str]],
 ]:
-    """Return mapping: submesh_index -> list of loop triangle tuples (v0,v1,v2,l0,l1,l2).
 
-    Drops triangles that can't fit any slot for this material; reports counts.
-    """
+
+
+
     if src_obj.type != "MESH":
         raise ValueError(f"Source object for {material_name!r} is not a mesh")
     try:
@@ -638,18 +807,18 @@ def _route_source_object_to_submesh_slots(
             src_obj.update_from_editmode()
     except Exception:
         pass
-    src_mesh: bpy.types.Mesh = src_obj.data                            
+    src_mesh: bpy.types.Mesh = src_obj.data
     try:
         src_mesh.calc_loop_triangles()
     except Exception:
         pass
 
-                                        
+
     sk_index_by_name: Dict[str, int] = {
         str(n): int(i) for i, n in enumerate(skeleton_names)
     }
 
-                                                                                 
+
     bones_by_v: List[List[int]] = [[] for _ in range(len(src_mesh.vertices))]
     unknown_bones: Dict[str, None] = {}
     unknown_by_v: List[List[str]] = [[] for _ in range(len(src_mesh.vertices))]
@@ -712,7 +881,7 @@ def _route_source_object_to_submesh_slots(
         palette_list_by_si[int(si)] = pal_list
         for bi in pal_list:
             palette_union[int(bi)] = None
-                                                             
+
         for i in range(len(pal_list)):
             a = int(pal_list[i])
             for j in range(i, len(pal_list)):
@@ -722,7 +891,7 @@ def _route_source_object_to_submesh_slots(
                 else:
                     palette_pair_ok[(b, a)] = None
 
-                       
+
     tris_by_si: Dict[int, List[Tuple[int, int, int, int, int, int]]] = {
         int(si): [] for si in candidates
     }
@@ -757,7 +926,7 @@ def _route_source_object_to_submesh_slots(
             return int(valid[0])
         if routing_strategy == "ORIGINAL_ORDER":
             return int(sorted(valid)[0])
-                               
+
         valid.sort(key=lambda s: (palette_size_by_si.get(int(s), 1 << 30), int(s)))
         return int(valid[0])
 
@@ -809,16 +978,16 @@ def _route_source_object_to_submesh_slots(
             out.append((name, float(w) / s))
         return out
 
-                                                                                     
-                                                                 
+
+
     tri_assigned_si: Dict[int, int] = {}
     tri_verts_by_idx: Dict[int, Tuple[int, int, int]] = {}
     tri_set_by_idx: Dict[int, Tuple[int, int, int]] = {}
     tri_indices_by_v: Dict[int, List[int]] = {}
 
     for tri in getattr(src_mesh, "loop_triangles", []) or []:
-                                                                                            
-                                                                                
+
+
         try:
             pi = int(getattr(tri, "polygon_index", -1))
             if 0 <= pi < len(src_mesh.polygons):
@@ -839,14 +1008,14 @@ def _route_source_object_to_submesh_slots(
         tri_ref = (int(a), int(b), int(c), int(la), int(lb), int(lc))
         tri_idx = int(getattr(tri, "index", -1))
         if tri_idx < 0:
-                                                                                      
+
             tri_idx = int(len(tri_verts_by_idx))
         tri_verts_by_idx[int(tri_idx)] = (int(a), int(b), int(c))
         tri_set_by_idx[int(tri_idx)] = tuple(sorted((int(a), int(b), int(c))))
         for vi in (a, b, c):
             tri_indices_by_v.setdefault(int(vi), []).append(int(tri_idx))
         used = _tri_bones_used(bones_by_v, (a, b, c))
-                                                                                      
+
         unk = []
         for vi in (a, b, c):
             if 0 <= int(vi) < len(unknown_by_v):
@@ -860,7 +1029,7 @@ def _route_source_object_to_submesh_slots(
             continue
         si = choose_slot(used)
         if si is None:
-                                                                                                   
+
             missing_any: List[int] = [
                 int(bi) for bi in used if int(bi) not in palette_union
             ]
@@ -879,7 +1048,7 @@ def _route_source_object_to_submesh_slots(
             else:
                 if mode == "DROP_CONFLICTS":
                     dropped += 1
-                                                                            
+
                     ub = sorted(set(int(bi) for bi in used))
                     pair = None
                     for i in range(len(ub)):
@@ -931,7 +1100,7 @@ def _route_source_object_to_submesh_slots(
                         if len(tied) == 1:
                             chosen = int(tied[0])
                         else:
-                                                           
+
                             best_si = None
                             best_score = -1.0
                             for si0 in tied:
@@ -959,7 +1128,7 @@ def _route_source_object_to_submesh_slots(
                     assigned_tri_count[int(chosen)] + 1
                 )
                 clamped += 1
-                                                                        
+
                 ub = sorted(set(int(bi) for bi in used))
                 pair = None
                 for i in range(len(ub)):

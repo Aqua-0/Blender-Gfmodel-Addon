@@ -1,7 +1,7 @@
-"""Blender export/patch entrypoint for GFModel.
 
-Implementation is split across `blender/exporter_parts/` to keep individual files manageable.
-"""
+
+
+
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ from bpy.props import CollectionProperty
 from .exporter_parts.ops_export import EXPORT_SCENE_OT_gfmodel
 from .exporter_parts.ops_grow_buffers import (
     GFModel_OT_patch_current_scene_grow_buffers_tris,
+    GFModel_OT_patch_current_scene_grow_buffers_robust,
+    GFModel_OT_patch_current_scene_grow_buffers_robust_autoroute,
+    GFModel_OT_patch_current_scene_export_textures,
     GFModel_OT_patch_current_scene_rebuild_active_submesh,
 )
 from .exporter_parts.ops_patch_archive import (
@@ -52,6 +55,9 @@ _CLASSES = (
     GFModel_OT_patch_current_scene_topology_tris_in_place,
     GFModel_OT_patch_current_scene_verts_topology_tris_in_place,
     GFModel_OT_patch_current_scene_grow_buffers_tris,
+    GFModel_OT_patch_current_scene_grow_buffers_robust,
+    GFModel_OT_patch_current_scene_grow_buffers_robust_autoroute,
+    GFModel_OT_patch_current_scene_export_textures,
     GFModel_OT_patch_current_scene_rebuild_active_submesh,
 )
 

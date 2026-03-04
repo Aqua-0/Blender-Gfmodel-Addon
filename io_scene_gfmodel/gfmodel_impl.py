@@ -1,8 +1,8 @@
-"""Addon coordinator.
 
-`__init__.py` exposes `register`/`unregister` from this module.
-This file stays intentionally small; implementation lives in submodules.
-"""
+
+
+
+
 
 from __future__ import annotations
 

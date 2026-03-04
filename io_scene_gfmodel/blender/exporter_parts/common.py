@@ -1,10 +1,10 @@
-"""Shared helpers used by exporter/patch operators.
 
-Important: PICA command parsing must match the file format used by GFModel mesh command
-buffers. The command stream stores pairs of (param0, cmd) u32 words, plus optional extra
-param words depending on the command header. Do not “simplify” this without verifying
-against real files, because tools patch registers (notably 0x0228 index count).
-"""
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def mesh_tris(mesh: bpy.types.Mesh) -> List[Tuple[int, int, int]]:
 def pica_iter_cmds_with_param_indices(
     cmds: Sequence[int],
 ) -> Iterable[Tuple[int, int, List[int]]]:
-    """Yield (reg, first_param_index, params_u32) for a PICA command stream."""
+
     i = 0
     n = int(len(cmds))
     while i + 1 < n:
@@ -75,7 +75,7 @@ def pica_iter_cmds_with_param_indices(
         extra = int((cmd >> 20) & 0x7FF)
         consecutive = (cmd >> 31) != 0
         if consecutive:
-                                                           
+
             for j in range(extra + 1):
                 yield (int(reg + j), int(start_param_index + j), [int(param0)])
                 if j < extra:

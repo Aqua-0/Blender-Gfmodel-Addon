@@ -1,12 +1,13 @@
-"""GARC/CRAG container parsing (minimal).
 
-This is intended for selectively reading files inside archives without extracting
-everything to disk. For now, it focuses on the container layout (CRAG + FATO/FATB/FIMB)
-and reading raw entry bytes (no decompression or nested-format tracing here yet).
-"""
+
+
+
+
+
 
 from __future__ import annotations
 
+import os
 import struct
 import time
 from dataclasses import dataclass
@@ -112,12 +113,12 @@ def _ctz32(x: int) -> int:
     x = int(x) & 0xFFFFFFFF
     if x == 0:
         return 32
-                          
+
     return (x & -x).bit_length() - 1
 
 
 def parse_garc_file(path: str) -> _GarcFileIndex:
-                                                                                    
+
     with open(path, "rb") as f:
         head = f.read(0x40)
         if len(head) < 0x1C:
@@ -127,8 +128,8 @@ def parse_garc_file(path: str) -> _GarcFileIndex:
         if magic not in ("CRAG", "GARC"):
             raise ValueError(f"not a GARC (magic={magic!r})")
         fato_off = _u32le(h, 0x04)
-                                                                                                   
-                                                                                           
+
+
         version = _u16le(h, 0x0A)
         data_off = _u32le(h, 0x10)
 
@@ -137,7 +138,7 @@ def parse_garc_file(path: str) -> _GarcFileIndex:
         if data_off <= 0:
             raise ValueError("invalid data offset")
 
-              
+
         f.seek(int(fato_off))
         fato_hdr = f.read(0x0C)
         if len(fato_hdr) < 0x0C:
@@ -150,14 +151,14 @@ def parse_garc_file(path: str) -> _GarcFileIndex:
             raise ValueError(f"missing FATO (magic={fato_magic!r})")
         if fato_size < 0x0C:
             raise ValueError("FATO size too small")
-                       
+
         fato_offsets = f.read(int(entry_count) * 4)
         if len(fato_offsets) < int(entry_count) * 4:
             raise ValueError("FATO offsets out of range")
         fo = memoryview(fato_offsets)
         offsets = [_u32le(fo, i * 4) for i in range(int(entry_count))]
 
-              
+
         fatb_off = int(fato_off) + int(fato_size)
         f.seek(fatb_off)
         fatb_hdr = f.read(0x0C)
@@ -175,8 +176,8 @@ def parse_garc_file(path: str) -> _GarcFileIndex:
             raise ValueError("FATB size too small")
         fatb_end = fatb_off + int(fatb_size)
 
-                                                                                                     
-                                                                                                                
+
+
         entries: List[_GarcPrimaryEntry] = []
         fatb_table_base = fatb_off + 0x0C
         for i in range(int(entry_count)):
@@ -220,7 +221,7 @@ def parse_garc(blob: bytes) -> _Garc:
         raise ValueError("file too small")
 
     magic = _ascii4(b, 0x00)
-                                                                                          
+
     if magic not in ("CRAG", "GARC"):
         raise ValueError(f"not a GARC (magic={magic!r})")
 
@@ -235,7 +236,7 @@ def parse_garc(blob: bytes) -> _Garc:
     if data_off <= 0 or data_off > len(b):
         raise ValueError("invalid data offset")
 
-          
+
     o = int(fato_off)
     fato_magic = _ascii4(b, o + 0x00)
     fato_size = _u32le(b, o + 0x04)
@@ -246,7 +247,7 @@ def parse_garc(blob: bytes) -> _Garc:
     entry_count = _u16le(b, o + 0x08)
     fato_offsets = [_u32le(b, o + 0x0C + i * 4) for i in range(int(entry_count))]
 
-          
+
     fatb_off = o + int(fato_size)
     fatb_magic = _ascii4(b, fatb_off + 0x00)
     fatb_size = _u32le(b, fatb_off + 0x04)
@@ -300,9 +301,9 @@ class _GarcPatchSub:
     start: int
     end: int
     length: int
-    start_off: int                                   
-    end_off: int                                 
-    length_off: int                                    
+    start_off: int
+    end_off: int
+    length_off: int
 
 
 @dataclass(frozen=True)
@@ -319,15 +320,15 @@ def rewrite_garc_file(
     replacements: dict[tuple[int, int], bytes],
     pad_size_override: Optional[int] = None,
 ) -> None:
-    """Rewrite a GARC file while replacing selected (entry_index, bit) payloads.
 
-    - Reads the header + FATO/FATB tables.
-    - Rebuilds the data section sequentially using the archive's `pad_size` alignment.
-    - Patches FATB subentry start/end/length fields to match the new layout.
-    - Updates header arc size + largest entry sizes.
 
-    This is intended as the first safe step toward in-Blender patch workflows.
-    """
+
+
+
+
+
+
+
     src_path = str(src_path)
     dst_path = str(dst_path)
     src = Path(src_path)
@@ -346,8 +347,8 @@ def rewrite_garc_file(
         header_size = _u32le(h, 0x04)
         version = _u16le(h, 0x0A)
         data_off = _u32le(h, 0x10)
-                                                                                 
-                                                                                    
+
+
         pad_size = 0
         if int(header_size) >= 0x24 and len(h) >= 0x24:
             pad_size = _u32le(h, 0x20)
@@ -364,7 +365,7 @@ def rewrite_garc_file(
         if data_off <= 0:
             raise ValueError("invalid data offset")
 
-              
+
         f.seek(fato_off)
         fato_hdr = f.read(0x0C)
         if len(fato_hdr) < 0x0C:
@@ -383,7 +384,7 @@ def rewrite_garc_file(
         fo = memoryview(fato_offsets)
         offsets = [_u32le(fo, i * 4) for i in range(int(entry_count))]
 
-              
+
         fatb_off = int(fato_off) + int(fato_size)
         f.seek(fatb_off)
         fatb_hdr = f.read(0x0C)
@@ -402,7 +403,7 @@ def rewrite_garc_file(
         fatb_table_base = fatb_off + 0x0C
         fatb_end = fatb_off + int(fatb_size)
 
-                                                   
+
         entries: List[_GarcPatchEntry] = []
         for i in range(int(entry_count)):
             ent_off = fatb_table_base + int(offsets[i])
@@ -442,12 +443,12 @@ def rewrite_garc_file(
                 cur += 12
             entries.append(_GarcPatchEntry(index=int(i), flags=int(flags), subs=subs))
 
-                                                                             
-                                                                                              
+
+
         pad_size = _infer_garc_pad_size(entries, default=int(pad_size))
 
-                                                                                           
-                                                                                       
+
+
         if replacements:
             import shutil
 
@@ -485,13 +486,13 @@ def rewrite_garc_file(
                 shutil.copyfile(str(src_path), str(dst_path))
                 return
 
-                                                                                                    
+
         f.seek(0)
         prefix = bytearray(f.read(int(data_off)))
         if len(prefix) != int(data_off):
             raise ValueError("failed to read archive prefix")
 
-                                                                                
+
         data_out = bytearray()
         largest_padded = 0
         largest = 0
@@ -503,7 +504,7 @@ def rewrite_garc_file(
 
         for ent in entries:
             for sub in ent.subs:
-                                                  
+
                 aligned = _align_up(len(data_out), int(pad_size))
                 if aligned > len(data_out):
                     data_out.extend(b"\xff" * (aligned - len(data_out)))
@@ -513,23 +514,23 @@ def rewrite_garc_file(
                 if key in replacements:
                     payload_raw = bytes(replacements[key])
 
-                                                                                                        
+
                     orig_stored_len = int(sub.end) - int(sub.start)
                     if orig_stored_len < 0:
                         raise ValueError("stored entry length invalid")
 
-                                                                                              
+
                     f.seek(int(data_off) + int(sub.start))
                     orig_stored = f.read(int(orig_stored_len))
                     if len(orig_stored) != int(orig_stored_len):
                         raise ValueError("failed to read original stored bytes")
 
-                                                                                                 
-                                                                                           
-                     
-                                                                                          
-                                                                                              
-                                                                                                    
+
+
+
+
+
+
                     if int(len(payload_raw)) == int(orig_stored_len):
                         length_field = int(sub.length)
                         stored_len = int(orig_stored_len)
@@ -545,7 +546,7 @@ def rewrite_garc_file(
                                 b"\xff" * (stored_len - length_field)
                             )
                 else:
-                                                                                       
+
                     stored_len = int(sub.end) - int(sub.start)
                     if stored_len < 0:
                         raise ValueError("stored entry length invalid")
@@ -561,28 +562,28 @@ def rewrite_garc_file(
                 largest = max(int(largest), int(length_field))
                 largest_padded = max(int(largest_padded), int(end - start))
 
-                                                                     
+
                 patch_u32(sub.start_off, int(start))
                 patch_u32(sub.end_off, int(end))
                 patch_u32(sub.length_off, int(length_field))
 
-                                                
+
         arc_size = int(data_off) + int(len(data_out))
         patch_u32(0x14, int(arc_size))
         patch_u32(0x18, int(largest_padded))
         patch_u32(0x1C, int(largest))
 
-                                          
+
     out_path = Path(dst_path)
-                                                                                      
+
     tmp_path = out_path.with_name(out_path.name + f".tmp.{int(time.time() * 1000)}")
     tmp_path.parent.mkdir(parents=True, exist_ok=True)
     with open(tmp_path, "wb") as w:
         w.write(prefix)
         w.write(data_out)
 
-                                                                                     
-                                                                                 
+
+
     last_err: Exception | None = None
     for attempt in range(15):
         try:
@@ -593,13 +594,13 @@ def rewrite_garc_file(
             last_err = e
             time.sleep(0.05 * (attempt + 1))
         except OSError as e:
-                                                                           
+
             last_err = e
             time.sleep(0.05 * (attempt + 1))
 
     if last_err is not None:
         try:
-                                  
+
             if tmp_path.exists():
                 tmp_path.unlink()
         except Exception:
@@ -631,3 +632,43 @@ def _infer_garc_pad_size(entries: List[_GarcPatchEntry], *, default: int) -> int
             return a
 
     return 4
+
+
+def rewrite_garc_file_inplace_atomic(
+    path: str,
+    *,
+    replacements: dict[tuple[int, int], bytes],
+    make_backup: bool = True,
+    backup_suffix: str = ".bak",
+    pad_size_override: Optional[int] = None,
+) -> None:
+
+
+
+
+
+
+
+    path = str(path)
+    if make_backup:
+        bak = path + str(backup_suffix)
+        if not os.path.exists(bak):
+            import shutil
+
+            shutil.copyfile(path, bak)
+
+    tmp = f"{path}.tmp_{int(time.time() * 1000)}"
+    try:
+        rewrite_garc_file(
+            path,
+            tmp,
+            replacements=dict(replacements),
+            pad_size_override=pad_size_override,
+        )
+        os.replace(tmp, path)
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass

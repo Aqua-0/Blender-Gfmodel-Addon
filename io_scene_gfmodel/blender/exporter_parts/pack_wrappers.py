@@ -1,8 +1,8 @@
-"""Helpers to unwrap/rewrap GFModelPack inside simple CP/CM containers.
 
-Used by in-place patch modes (including Grow Buffers) so they work when the imported
-source blob is `CM` or `CP->CM`, not only a raw GFModelPack.
-"""
+
+
+
+
 
 from __future__ import annotations
 
@@ -30,18 +30,18 @@ def _find_pack_index_in_cm(cm_bytes: bytes) -> int:
 
 @dataclass(frozen=True)
 class PackWrapper:
-    kind: str               
+    kind: str
     cm_pack_index: int = -1
 
-                                                  
+
     cm_bytes: bytes = b""
 
-                                                                                                
+
     cp_bytes: bytes = b""
 
 
 def unwrap_pack(src_data: bytes) -> tuple[bytes, PackWrapper]:
-    """Return (pack_bytes, wrapper) for RAW_PACK / CM / CP->CM sources."""
+
     if _is_pack(src_data):
         return bytes(src_data), PackWrapper(kind="RAW")
 
@@ -73,7 +73,7 @@ def unwrap_pack(src_data: bytes) -> tuple[bytes, PackWrapper]:
 
 
 def rewrap_pack(wrapper: PackWrapper, new_pack: bytes) -> bytes:
-    """Return a new blob with `new_pack` inserted back into its original wrapper."""
+
     if wrapper.kind == "RAW":
         return bytes(new_pack)
     if wrapper.kind == "CM":

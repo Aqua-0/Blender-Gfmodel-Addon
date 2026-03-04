@@ -1,11 +1,11 @@
-"""Pokemon-style 2-byte containers (CP/CM/etc).
 
-Format (see `docs/gfmodel_binary_format.md`):
-- `char[2] magic` (ASCII)
-- `u16 count`
-- `u32[count+1] offsets` (relative to start of container)
-- entry i is `data[offsets[i]..offsets[i+1]]`
-"""
+
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -76,19 +76,19 @@ def patch_container(
     align: int = 0x80,
     pad_byte: int = 0x00,
 ) -> bytes:
-    """Patch a single container entry.
 
-    If the replacement fits in the existing stored segment (`len(replacement) <= len(old_seg)`),
-    this performs an in-place patch and preserves the original header/offset table bytes exactly.
-    Otherwise, it rebuilds the container using `align` and `pad_byte`.
-    """
+
+
+
+
+
     cont = parse_container(blob)
     if index < 0 or index >= cont.count:
         raise IndexError("container index out of range")
 
     rep = bytes(replacement)
 
-                                                                                                    
+
     start = int(cont.offsets[index])
     end = int(cont.offsets[index + 1])
     if start < 0 or end < start or end > len(blob):
@@ -101,7 +101,7 @@ def patch_container(
         out[start : start + len(rep)] = rep
         return bytes(out)
 
-                                                                 
+
     segments: List[bytes] = []
     for i in range(cont.count):
         s = int(cont.offsets[i])

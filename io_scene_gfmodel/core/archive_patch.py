@@ -1,10 +1,10 @@
-"""Patch helpers for nested archive formats (GARC -> LZ11 -> Mini -> CP/CM -> nested CP/CM).
 
-This module is Blender-independent. The Blender UI/operator layer should supply:
-- archive path + entry index
-- mini index / container index / nested index
-- replacement leaf bytes
-"""
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def patch_entry_leaf_bytes(
     nested_index: int,
     replacement_leaf_bytes: bytes,
 ) -> bytes:
-    """Return new entry bytes after replacing a nested leaf (auto (de)compresses)."""
+
     entry_was_lz11 = looks_like_lz11(entry_bytes)
     entry_dec = decompress(entry_bytes) if entry_was_lz11 else entry_bytes
 
@@ -60,15 +60,15 @@ def patch_entry_leaf_bytes(
     leaf_raw = cont2.extract(outer_dec, int(nested_index))
 
     leaf_was_lz11 = looks_like_lz11(leaf_raw)
-                                                                                                
-                                                                                          
-                                                                             
+
+
+
     if leaf_was_lz11:
         if looks_like_lz11(replacement_leaf_bytes):
             leaf_new_raw = bytes(replacement_leaf_bytes)
         else:
-                                                                                                 
-                                                                                                
+
+
             try:
                 if bytes(decompress(leaf_raw)) == bytes(replacement_leaf_bytes):
                     leaf_new_raw = bytes(leaf_raw)
@@ -116,7 +116,7 @@ def patch_archive_leaf_file(
     dst_path: str,
     bit: int = 0,
 ) -> None:
-    """Patch one leaf into a GARC file and write `dst_path`."""
+
     garc = parse_garc_file(ctx.archive_path)
     entry = garc.read_primary_bytes(int(ctx.entry_index))
     new_entry = patch_entry_leaf_bytes(
@@ -126,8 +126,8 @@ def patch_archive_leaf_file(
         nested_index=int(ctx.nested_index),
         replacement_leaf_bytes=replacement_leaf_bytes,
     )
-                                                                                         
-                                                                                            
+
+
     if bytes(new_entry) == bytes(entry):
         import shutil
 

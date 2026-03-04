@@ -1,7 +1,7 @@
-"""Binary writer helpers for GFModel export (v1 scaffold-based).
 
-This module intentionally contains no Blender registration logic.
-"""
+
+
+
 
 from __future__ import annotations
 
@@ -22,13 +22,13 @@ from .types import (
 
 
 def _gfnv1_32(data: bytes) -> int:
-    """GameFreak's FNV1 variant used by GFHashName/GFHashName2 in CTR-era assets.
 
-    Matches SPICA's `GFNV1`:
-    - prime: 16777619 (0x01000193)
-    - initial hash: prime (not the standard FNV offset basis)
-    - step: h = (h * prime) ^ b
-    """
+
+
+
+
+
+
     prime = 0x01000193
     h = prime
     for b in data:
@@ -55,10 +55,10 @@ class _BinWriter:
     def pad_to_next_boundary(
         self, boundary: int, *, pad: int = 0, minimum: int = 0
     ) -> None:
-        """Pad with `pad` bytes up to the next `boundary`.
 
-        If already aligned and `minimum`>0, pads exactly `minimum` bytes.
-        """
+
+
+
         if boundary <= 0:
             return
         cur = len(self._b)
@@ -135,7 +135,7 @@ def _write_gf_section_header(w: _BinWriter, magic8: bytes, length: int) -> None:
 
 
 def _pica_patch_first_param(cmds: List[int], reg: int, new_param: int) -> bool:
-    """Patch the first write to `reg` in-place, best-effort."""
+
     i = 0
     while i + 1 < len(cmds):
         param0_i = i
@@ -164,12 +164,12 @@ def _pica_patch_first_param(cmds: List[int], reg: int, new_param: int) -> bool:
 
 
 def _pica_patch_all_params(cmds: List[int], reg: int, new_param: int) -> int:
-    """Patch all writes to `reg` in-place, best-effort.
 
-    Some meshes write the same register multiple times (e.g. reasserting state before the draw).
-    For counts/config derived from exported buffers, patching only the first write can leave later
-    writes stale and cause in-game issues.
-    """
+
+
+
+
+
     patched = 0
     i = 0
     while i + 1 < len(cmds):
@@ -199,7 +199,7 @@ def _pica_patch_all_params(cmds: List[int], reg: int, new_param: int) -> int:
 
 
 def _pica_get_first_param(cmds: List[int], reg: int) -> Optional[int]:
-    """Return the first param written to `reg`, if present (best-effort)."""
+
     i = 0
     while i + 1 < len(cmds):
         param0_i = i
@@ -226,12 +226,12 @@ def _pica_get_first_param(cmds: List[int], reg: int) -> Optional[int]:
 
 
 def _pica_write_cmd_stream_raw(w: _BinWriter, cmds: List[int]) -> None:
-    """Write a raw packed PICA command word stream.
 
-    Retail GF model meshes store the command buffer as a flat u32 array where the 8-byte
-    padding words used by PICA packets are included in `cmdLength` and are expected by
-    parsers like SPICA (and our importer’s `_pica_read_commands`).
-    """
+
+
+
+
+
     for v in cmds:
         w.u32(int(v) & 0xFFFFFFFF)
 
@@ -239,35 +239,35 @@ def _pica_write_cmd_stream_raw(w: _BinWriter, cmds: List[int]) -> None:
 def build_gf_texture_rgba8(
     name: str, width: int, height: int, raw_rgba: bytes
 ) -> _GFTexture:
-    """Creates an in-memory GFTexture using GF fmt=0x4 (RGBA8).
 
-    Note: raw encoding/swizzle is handled by the caller; this struct is just the parsed representation.
-    """
+
+
+
     return _GFTexture(
         name=name, width=int(width), height=int(height), fmt=0x4, raw=raw_rgba
     )
 
 
 def encode_pica_rgba8_swizzled_abgr(raw_rgba: bytes, width: int, height: int) -> bytes:
-    """Encode linear RGBA8 (top-left origin) into PICA RGBA8 swizzled ABGR bytes.
 
-    This is the inverse of `_pica_decode_to_bgra` for fmt=RGBA8 for the swizzle+channel parts
-    (not including the external vertical flip used by the importer).
-    """
+
+
+
+
     if width % 8 != 0 or height % 8 != 0:
         raise ValueError("RGBA8 swizzle requires width/height multiples of 8")
     if len(raw_rgba) != width * height * 4:
         raise ValueError("raw_rgba size mismatch")
 
-                                                                                         
-                                                                                  
-                                              
-                                                                                             
-                                           
+
+
+
+
+
     out = bytearray(width * height * 4)
 
-                                     
-    from .pica import _SWIZZLE_LUT                
+
+    from .pica import _SWIZZLE_LUT
 
     i_off = 0
     for ty in range(0, height, 8):
@@ -282,7 +282,7 @@ def encode_pica_rgba8_swizzled_abgr(raw_rgba: bytes, width: int, height: int) ->
                 g = raw_rgba[si + 1]
                 b = raw_rgba[si + 2]
                 a = raw_rgba[si + 3]
-                                                     
+
                 out[i_off + 0] = a
                 out[i_off + 1] = r
                 out[i_off + 2] = g
@@ -295,7 +295,7 @@ def write_gf_texture_blob(tex: _GFTexture) -> bytes:
     w = _BinWriter()
     w.u32(0x15041213)
     w.u32(1)
-                                          
+
     sect_start = w.tell
     _write_gf_section_header(w, b"texture\x00", 0)
     payload_start = w.tell
@@ -306,12 +306,12 @@ def write_gf_texture_blob(tex: _GFTexture) -> bytes:
     w.u16(int(tex.width))
     w.u16(int(tex.height))
     w.u16(int(tex.fmt))
-    w.u16(0)                                      
+    w.u16(0)
     w.bytes(b"\x00" * 0x10)
     w.bytes(tex.raw)
 
     payload_len = w.tell - payload_start
-    struct.pack_into("<I", w._b, sect_start + 8, int(payload_len))                              
+    struct.pack_into("<I", w._b, sect_start + 8, int(payload_len))
     return w.finish()
 
 
@@ -385,10 +385,10 @@ def write_gf_material_blob(mat: _GFMaterial) -> bytes:
     for cw in mat.pica_commands:
         w.u32(int(cw))
 
-                                                        
+
     w.align(0x10, 0)
     payload_len = w.tell - payload_start
-    struct.pack_into("<I", w._b, sect_start + 8, int(payload_len))                              
+    struct.pack_into("<I", w._b, sect_start + 8, int(payload_len))
     return w.finish()
 
 
@@ -396,10 +396,10 @@ def write_gf_mesh_blob(mesh_name: str, faces: List[_GFSubMesh]) -> bytes:
     if not faces:
         raise ValueError("mesh has no faces")
 
-                                                          
+
     hdr = faces[0]
-                                                                                            
-                                                                                           
+
+
     idx16_by_face: List[bool] = []
     for sm in faces:
         old = _pica_get_first_param([int(x) for x in sm.index_cmds], 0x0227) or 0
@@ -422,20 +422,20 @@ def write_gf_mesh_blob(mesh_name: str, faces: List[_GFSubMesh]) -> bytes:
     w.u32(int(hdr.mesh_face_count))
     w.u32(int(hdr.mesh_weight_max))
 
-                                                                     
+
     pad_len = (0x80 - ((w.tell - payload_start) % 0x80)) % 0x80
     if pad_len:
         w.bytes(b"\xff" * pad_len)
 
-                                
+
     total_lists = int(len(faces) * 3)
     for i, sm in enumerate(faces):
         lists = (sm.enable_cmds, sm.disable_cmds, sm.index_cmds)
         for li, cmd_words in enumerate(lists):
             cmds = [int(x) for x in cmd_words]
-                                                                 
+
             if li == 2:
-                                                                                        
+
                 old = _pica_get_first_param(cmds, 0x0227) or 0
                 idx16 = bool(idx16_by_face[int(i)])
                 new = (int(old) & 0x7FFFFFFF) | (0x80000000 if idx16 else 0)
@@ -447,11 +447,11 @@ def write_gf_mesh_blob(mesh_name: str, faces: List[_GFSubMesh]) -> bytes:
             w.u32(0)
             _pica_write_cmd_stream_raw(w, cmds)
 
-               
+
     for sm_i, sm in enumerate(faces):
         w.u32(_gfnv1_32(sm.name.encode("ascii", "replace")))
-                                                                                       
-                                                                                         
+
+
         w.int_len_string_padded4(sm.name, pad=0)
         w.u8(int(sm.bone_indices_count) & 0xFF)
         bi = list(sm.bone_indices)[: int(sm.bone_indices_count)]
@@ -461,7 +461,7 @@ def write_gf_mesh_blob(mesh_name: str, faces: List[_GFSubMesh]) -> bytes:
         w.s32(int(sm.vertex_count))
         w.s32(int(sm.index_count))
         w.s32(int(len(sm.raw_buffer)))
-                                                             
+
         idx16 = bool(idx16_by_face[int(sm_i)])
         elem_size = 2 if idx16 else 1
         idx_bytes = int(len(sm.indices) * elem_size)
@@ -470,7 +470,7 @@ def write_gf_mesh_blob(mesh_name: str, faces: List[_GFSubMesh]) -> bytes:
             desired = idx_bytes
         w.s32(int(desired))
 
-                                   
+
     for sm_i, sm in enumerate(faces):
         w.bytes(sm.raw_buffer)
         idx16 = bool(idx16_by_face[int(sm_i)])
@@ -481,7 +481,7 @@ def write_gf_mesh_blob(mesh_name: str, faces: List[_GFSubMesh]) -> bytes:
         else:
             for ii in sm.indices:
                 w.u8(int(ii))
-                                                                                             
+
         desired = int(getattr(sm, "index_data_len", 0) or 0)
         if desired > 0:
             written = int(len(sm.indices) * elem_size)
@@ -493,23 +493,23 @@ def write_gf_mesh_blob(mesh_name: str, faces: List[_GFSubMesh]) -> bytes:
                 else:
                     w.bytes(b"\x00" * pad_len)
 
-                                                        
-                                                                                       
-                                                                     
+
+
+
     cur_payload = int(w.tell - payload_start)
     mod = cur_payload & 0xF
     pad_len = (0x10 - mod) if mod else 0x10
     w.bytes(b"\x00" * int(pad_len))
     payload_len = w.tell - payload_start
-    struct.pack_into("<I", w._b, sect_start + 8, int(payload_len))                              
+    struct.pack_into("<I", w._b, sect_start + 8, int(payload_len))
     return w.finish()
 
 
 def write_gf_model_blob(model: _GFModel, *, meshes_by_index: Dict[int, bytes]) -> bytes:
     w = _BinWriter()
     w.u32(0x15122117)
-                                                                                  
-                                                        
+
+
     w.u32(1 + int(len(model.materials)) + int(len(meshes_by_index)))
     w.align(0x10, 0)
 
@@ -537,7 +537,7 @@ def write_gf_model_blob(model: _GFModel, *, meshes_by_index: Dict[int, bytes]) -
         for f in row:
             w.f32(float(f))
 
-                                                                                              
+
     unk = model.unknown_blob or b""
     w.u32(len(unk))
     unk_off = int(getattr(model, "unknown_off", 0) or 0)
@@ -576,21 +576,21 @@ def write_gf_model_blob(model: _GFModel, *, meshes_by_index: Dict[int, bytes]) -
             raise ValueError("LUT length mismatch")
         w.bytes(cb)
 
-                                                                                    
-                                                                                           
+
+
     w.align(0x10, 0)
 
-                                                                                             
+
     payload_len = w.tell - payload_start
-    struct.pack_into("<I", w._b, sect_start + 8, int(payload_len))                              
+    struct.pack_into("<I", w._b, sect_start + 8, int(payload_len))
 
     for mat in model.materials:
         if getattr(mat, "raw_blob", None):
-            w.bytes(mat.raw_blob)                          
+            w.bytes(mat.raw_blob)
         else:
             w.bytes(write_gf_material_blob(mat))
 
-                                                                      
+
     for mesh_idx in range(len(model.mesh_names)):
         blob = meshes_by_index.get(int(mesh_idx))
         if blob is None:
@@ -609,7 +609,7 @@ class _GFPackEntry:
 def parse_gf_model_pack_entries(
     data: bytes,
 ) -> Tuple[List[List[_GFPackEntry]], List[int]]:
-    """Parse raw GFModelPack entries for all 5 sections (including unknown sections)."""
+
     if len(data) < 4 + 5 * 4:
         raise ValueError("data too small for GFModelPack")
     pos = 0
@@ -619,7 +619,7 @@ def parse_gf_model_pack_entries(
     counts = [struct.unpack_from("<I", data, 4 + i * 4)[0] for i in range(5)]
     pointers_addr = 4 + 5 * 4
 
-    entries: List[Tuple[int, int, str, int]] = []                                   
+    entries: List[Tuple[int, int, str, int]] = []
     base = pointers_addr
     for sect in range(5):
         sect_count = int(counts[sect])
@@ -667,14 +667,14 @@ def write_gf_model_pack(
     for c in counts:
         w.u32(int(c))
 
-                             
+
     ptr_tables_off = w.tell
     ptr_offsets: List[int] = []
     for sect in range(5):
         for _ in range(counts[sect]):
             ptr_offsets.append(w.reserve_u32())
 
-                                                                                       
+
     addr_patch_offsets: List[int] = []
     for sect in range(5):
         for entry in sections[sect]:
@@ -683,12 +683,12 @@ def write_gf_model_pack(
             w.byte_len_string(entry.name)
             addr_patch_offsets.append(w.reserve_u32())
 
-                                                                  
+
     for sect in range(5):
         for entry in sections[sect]:
-                                                                                           
-                                                                                               
-                                                                                         
+
+
+
             w.align(0x80, 0)
             addr = w.tell
             if not addr_patch_offsets:

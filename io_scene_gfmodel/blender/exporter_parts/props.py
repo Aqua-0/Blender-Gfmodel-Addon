@@ -1,4 +1,4 @@
-"""Blender PropertyGroup definitions used by exporter UI."""
+
 
 from __future__ import annotations
 

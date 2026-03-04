@@ -1,4 +1,4 @@
-"""Patch exported bytes back into the source GARC entry using a recorded patch plan."""
+
 
 from __future__ import annotations
 
@@ -8,7 +8,11 @@ from typing import Optional
 import bpy
 
 from ...core.archive_patch import patch_entry_leaf_bytes
-from ...core.garc import parse_garc_file, rewrite_garc_file
+from ...core.garc import (
+    parse_garc_file,
+    rewrite_garc_file,
+    rewrite_garc_file_inplace_atomic,
+)
 from ...core.lz11 import decompress, looks_like_lz11
 from ...core.mini import parse_mini
 from ...core.patch_plan import (
@@ -32,13 +36,63 @@ def _resolve_out_archive(archive_path: str, out_archive: str) -> str:
     return str(out_archive)
 
 
+def _resolve_target_collection(
+    context: bpy.types.Context,
+) -> Optional[bpy.types.Collection]:
+    obj = getattr(context, "active_object", None)
+    if obj is not None:
+        try:
+            name = str(obj.get("gfmodel_import_collection", "") or "").strip()
+            if name:
+                coll = bpy.data.collections.get(name)
+                if coll is not None:
+                    return coll
+        except Exception:
+            pass
+    try:
+        name = str(context.scene.get("gfmodel_last_import_collection", "") or "").strip()
+        if name:
+            coll = bpy.data.collections.get(name)
+            if coll is not None:
+                return coll
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_patch_plan_json(context: bpy.types.Context) -> str:
+    coll = _resolve_target_collection(context)
+    if coll is not None:
+        try:
+            pj = str(coll.get("gfmodel_patch_plan_json", "") or "").strip()
+            if pj:
+                return pj
+        except Exception:
+            pass
+    return str(context.scene.get("gfmodel_patch_plan_json", "") or "").strip()
+
+
+def _resolve_last_import_compare(context: bpy.types.Context) -> tuple[str, str, str]:
+    coll = _resolve_target_collection(context)
+    if coll is not None:
+        try:
+            last_bc = str(coll.get("gfmodel_last_import_breadcrumb", "") or "").strip()
+            last_src = str(coll.get("gfmodel_last_import_source", "") or "").strip()
+            compare = last_bc or last_src
+            return last_bc, last_src, compare
+        except Exception:
+            pass
+    last_bc = str(context.scene.get("gfmodel_last_import_breadcrumb", "") or "").strip()
+    last_src = str(context.scene.get("gfmodel_last_import_source", "") or "").strip()
+    compare = last_bc or last_src
+    return last_bc, last_src, compare
+
+
 def _sanity_check_breadcrumb(context: bpy.types.Context, breadcrumb: str) -> None:
     bc = str(breadcrumb or "").strip()
     if not bc:
         return
-    last_bc = str(context.scene.get("gfmodel_last_import_breadcrumb", "")).strip()
-    last_src = str(context.scene.get("gfmodel_last_import_source", "")).strip()
-    compare = last_bc or last_src
+    last_bc, last_src, compare = _resolve_last_import_compare(context)
     if compare and bc != compare:
         raise ValueError(
             "Patch target does not match last imported source.\n"
@@ -81,14 +135,10 @@ def _patch_via_legacy_container2(context: bpy.types.Context, out_bytes: bytes) -
     if inplace:
         if not backup:
             raise ValueError("In-place patch requires Backup enabled")
-        bak_path = archive_path + ".bak"
-        if os.path.exists(bak_path):
-            raise ValueError(f"Backup already exists: {bak_path}")
-        os.replace(archive_path, bak_path)
-        rewrite_garc_file(
-            bak_path,
+        rewrite_garc_file_inplace_atomic(
             archive_path,
             replacements={(int(entry_i), 0): new_entry},
+            make_backup=True,
         )
         out_archive = archive_path
     else:
@@ -102,7 +152,7 @@ def _patch_via_legacy_container2(context: bpy.types.Context, out_bytes: bytes) -
             replacements={(int(entry_i), 0): new_entry},
         )
 
-             
+
     garc2 = parse_garc_file(out_archive)
     entry2 = garc2.read_primary_bytes(int(entry_i))
     entry2_dec = decompress(entry2) if looks_like_lz11(entry2) else entry2
@@ -124,10 +174,10 @@ def _patch_via_legacy_container2(context: bpy.types.Context, out_bytes: bytes) -
 
 
 def patch_into_source_archive(context: bpy.types.Context, out_bytes: bytes) -> str:
-    """Patch `out_bytes` into the original GARC entry and return output archive path."""
-    plan_json = str(context.scene.get("gfmodel_patch_plan_json", "")).strip()
+
+    plan_json = _resolve_patch_plan_json(context)
     if not plan_json:
-                                       
+
         level = str(context.scene.get("gfmodel_patch_source_level", "")).strip()
         if level == "container2":
             return _patch_via_legacy_container2(context, out_bytes)
@@ -153,14 +203,10 @@ def patch_into_source_archive(context: bpy.types.Context, out_bytes: bytes) -> s
     if inplace:
         if not backup:
             raise ValueError("In-place patch requires Backup enabled")
-        bak_path = archive_path + ".bak"
-        if os.path.exists(bak_path):
-            raise ValueError(f"Backup already exists: {bak_path}")
-        os.replace(archive_path, bak_path)
-        rewrite_garc_file(
-            bak_path,
+        rewrite_garc_file_inplace_atomic(
             archive_path,
             replacements={(int(plan.entry_index), int(plan.bit)): new_entry},
+            make_backup=True,
         )
         out_archive = archive_path
     else:
@@ -174,7 +220,7 @@ def patch_into_source_archive(context: bpy.types.Context, out_bytes: bytes) -> s
             replacements={(int(plan.entry_index), int(plan.bit)): new_entry},
         )
 
-             
+
     garc2 = parse_garc_file(out_archive)
     entry2 = garc2.read_primary_bytes(int(plan.entry_index))
     payload2 = extract_via_steps(entry2, plan.steps)

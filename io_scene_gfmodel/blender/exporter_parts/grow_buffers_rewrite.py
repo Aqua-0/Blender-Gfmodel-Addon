@@ -1,7 +1,7 @@
-"""Grow Buffers mesh-section rewrite logic (triangles).
 
-Kept separate from operator/UI code to keep file sizes manageable.
-"""
+
+
+
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def _rewrite_model_blob_grow_buffers_tris(
     allow_palette_rebuild: bool = True,
     allow_palette_split: bool = True,
 ) -> bytes:
-    """Rewrite a GFModel blob by rebuilding mesh sections with grown vtx/idx buffers (triangles only)."""
+
     out_model = bytearray(model_blob)
     gf_nrm = gf_from_blender.to_3x3()
     overflow_mesh_parts: Dict[str, List[_GFSubMesh]] = {}
@@ -47,13 +47,13 @@ def _rewrite_model_blob_grow_buffers_tris(
     def _build_uv_seam_split_tris(
         mesh: bpy.types.Mesh,
     ) -> Tuple[int, List[int], List[Tuple[int, Tuple[float, float]]]]:
-        """Build triangle indices while optionally splitting vertices by UV seams.
 
-        Returns:
-          - new_vcount: number of unique (vertex, seam-uv) keys
-          - new_indices: triangle indices into the compacted/split vertex list
-          - used_keys: list mapping new vertex index -> (source vertex index, uv0)
-        """
+
+
+
+
+
+
         try:
             mesh.calc_loop_triangles()
         except Exception:
@@ -174,11 +174,11 @@ def _rewrite_model_blob_grow_buffers_tris(
         obj: bpy.types.Object,
         skeleton_names: List[str],
     ) -> List[_GFSubMesh]:
-        """Return one or more new binary submeshes derived from a single Blender object.
 
-        Splits triangles into multiple submeshes when the local bone palette would overflow 0x1F.
-        """
-        mesh: bpy.types.Mesh = obj.data                            
+
+
+
+        mesh: bpy.types.Mesh = obj.data
         if int(sm.primitive_mode) != 0:
             raise ValueError(
                 f"Grow-buffers patch supports primitive_mode=0 (Triangles) only; submesh {sm.name!r} has {int(sm.primitive_mode)}"
@@ -193,9 +193,9 @@ def _rewrite_model_blob_grow_buffers_tris(
             pass
         try:
             if hasattr(mesh, "calc_normals_split"):
-                mesh.calc_normals_split()                              
+                mesh.calc_normals_split()
             elif hasattr(mesh, "calc_normals"):
-                mesh.calc_normals()                              
+                mesh.calc_normals()
         except Exception:
             pass
 
@@ -651,13 +651,13 @@ def _rewrite_model_blob_grow_buffers_tris(
                 o = base + j * elem
                 if o < 0 or o + elem > len(out):
                     break
-                if int(bi_attr.fmt) == 0:      
+                if int(bi_attr.fmt) == 0:
                     pi = struct.unpack_from("<b", out, o)[0]
-                elif int(bi_attr.fmt) == 1:      
+                elif int(bi_attr.fmt) == 1:
                     pi = out[o]
-                elif int(bi_attr.fmt) == 2:       
+                elif int(bi_attr.fmt) == 2:
                     pi = struct.unpack_from("<h", out, o)[0]
-                else:       
+                else:
                     pi = int(round(struct.unpack_from("<f", out, o)[0]))
                 if int(pi) < 0:
                     pi = 0
@@ -801,7 +801,7 @@ def _rewrite_model_blob_grow_buffers_tris(
                 attr_names = set(int(a.name) for a in (sm.attributes or []))
                 if not (7 in attr_names and 8 in attr_names):
                     continue
-                mesh: bpy.types.Mesh = obj.data                            
+                mesh: bpy.types.Mesh = obj.data
                 sk_w_by_v, unknown_bones = _gather_weights_skeleton_indices_checked(
                     obj, skeleton_names
                 )
@@ -894,7 +894,7 @@ def _rewrite_model_blob_grow_buffers_tris(
             if obj is None and planned is None:
                 continue
             mesh: Optional[bpy.types.Mesh] = (
-                obj.data if obj is not None else None                            
+                obj.data if obj is not None else None
             )
             if int(sm.primitive_mode) != 0:
                 raise ValueError(
@@ -1047,7 +1047,7 @@ def _rewrite_model_blob_grow_buffers_tris(
                 continue
 
             mesh: Optional[bpy.types.Mesh] = (
-                obj.data if obj is not None else None                            
+                obj.data if obj is not None else None
             )
             used_keys: Optional[List[Tuple[int, Tuple[float, float]]]] = None
             if planned is not None:

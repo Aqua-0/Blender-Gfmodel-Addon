@@ -1,7 +1,7 @@
-"""Implementation of `EXPORT_SCENE_OT_gfmodel.execute`.
 
-Separated to keep operator class definitions small.
-"""
+
+
+
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from .archive_patch_apply import patch_into_source_archive
 from .grow_buffers_patch import (
     _apply_uv_strategy_to_mesh,
     _build_temp_mesh_object_for_slot,
+    _build_temp_mesh_object_for_sources,
     _collect_tris_all,
     _collect_tris_for_material,
     _material_routing_candidates,
@@ -52,8 +53,52 @@ from .textures_patch import (
 )
 
 
+def _resolve_target_collection(context: bpy.types.Context) -> Optional[bpy.types.Collection]:
+    obj = getattr(context, "active_object", None)
+    if obj is not None:
+        try:
+            name = str(obj.get("gfmodel_import_collection", "") or "").strip()
+            if name:
+                coll = bpy.data.collections.get(name)
+                if coll is not None:
+                    return coll
+        except Exception:
+            pass
+    try:
+        name = str(context.scene.get("gfmodel_last_import_collection", "") or "").strip()
+        if name:
+            coll = bpy.data.collections.get(name)
+            if coll is not None:
+                return coll
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_import_source_path(
+    context: bpy.types.Context, coll: Optional[bpy.types.Collection]
+) -> str:
+    if coll is not None:
+        try:
+            sp = str(coll.get("gfmodel_last_import_path", "") or "").strip()
+            if sp:
+                return sp
+        except Exception:
+            pass
+    obj = getattr(context, "active_object", None)
+    if obj is not None:
+        try:
+            sp = str(obj.get("gfmodel_source_path", "") or "").strip()
+            if sp:
+                return sp
+        except Exception:
+            pass
+    return str(context.scene.get("gfmodel_last_import_path", "") or "").strip()
+
+
 def export_scene_execute(self, context: bpy.types.Context):
-    src_path = str(context.scene.get("gfmodel_last_import_path", ""))
+    coll = _resolve_target_collection(context)
+    src_path = _resolve_import_source_path(context, coll)
     if not src_path:
         self.report({"ERROR"}, "No last import path stored; import a GFModel first")
         return {"CANCELLED"}
@@ -99,7 +144,8 @@ def export_scene_execute(self, context: bpy.types.Context):
     model = models[0]
 
     tagged: Dict[int, bpy.types.Object] = {}
-    for obj in bpy.data.objects:
+    obj_iter = coll.objects if coll is not None else bpy.data.objects
+    for obj in obj_iter:
         if obj.type != "MESH":
             continue
         if obj.get("gfmodel_model_name") != model.name:
@@ -249,19 +295,40 @@ def export_scene_execute(self, context: bpy.types.Context):
                 )
             elif self.mesh_export_mode == "GROW_BUFFERS_TRIS":
                 active_obj = context.active_object
+                active_mesh_obj = None
+                if active_obj is not None and getattr(active_obj, "type", "") == "MESH":
+                    active_mesh_obj = active_obj
+                elif active_obj is not None and getattr(active_obj, "type", "") == "ARMATURE":
+                    try:
+                        ucs = getattr(active_obj, "users_collection", None)
+                        objs2 = list(ucs[0].all_objects) if ucs else []
+                        for o2 in objs2:
+                            if o2 is None or getattr(o2, "type", "") != "MESH":
+                                continue
+                            if o2.get("gfmodel_model_name") != model.name:
+                                continue
+                            if o2.get("gfmodel_submesh_index") is None:
+                                continue
+                            active_mesh_obj = o2
+                            break
+                    except Exception:
+                        active_mesh_obj = None
                 if (
-                    active_obj is None
-                    or active_obj.type != "MESH"
-                    or active_obj.get("gfmodel_model_name") != model.name
-                    or active_obj.get("gfmodel_submesh_index") is None
+                    active_mesh_obj is None
+                    or active_mesh_obj.get("gfmodel_model_name") != model.name
+                    or active_mesh_obj.get("gfmodel_submesh_index") is None
                 ):
                     raise ValueError(
-                        "Select an imported GFModel mesh object (active) before using Grow Buffers"
+                        "Select an imported GFModel mesh (or its armature) before using Grow Buffers"
                     )
+                active_obj = active_mesh_obj
 
                 uv_strategy = str(
                     getattr(self, "grow_buffers_uv_strategy", "DUPLICATE")
                     or "DUPLICATE"
+                )
+                patch_all = bool(
+                    getattr(self, "grow_buffers_patch_all_tagged_submeshes", False)
                 )
                 rebuild_mode = str(
                     getattr(self, "grow_buffers_rebuild_mode", "") or ""
@@ -290,8 +357,229 @@ def export_scene_execute(self, context: bpy.types.Context):
                 ):
                     clamp_conflict_mode = "CLAMP_BY_WEIGHT"
 
+                if patch_all:
+                    if str(uv_strategy) != "DUPLICATE":
+                        raise ValueError(
+                            "Robust patch mode currently requires UV Strategy=DUPLICATE"
+                        )
+
+
+                    objs = None
+                    try:
+                        ucs = getattr(active_obj, "users_collection", None)
+                        if ucs:
+
+                            objs = list(ucs[0].all_objects)
+                    except Exception:
+                        objs = None
+                    if objs is None:
+                        objs = list(bpy.data.objects)
+
+                    tagged_all: Dict[int, bpy.types.Object] = {}
+                    duplicates: List[int] = []
+                    for o in objs:
+                        if o is None or getattr(o, "type", "") != "MESH":
+                            continue
+                        if o.get("gfmodel_model_name") != model.name:
+                            continue
+                        si = o.get("gfmodel_submesh_index")
+                        if si is None:
+                            continue
+                        try:
+                            si_i = int(si)
+                        except Exception:
+                            continue
+                        if si_i in tagged_all:
+                            duplicates.append(int(si_i))
+                            continue
+                        tagged_all[int(si_i)] = o
+
+                    if duplicates:
+                        self.report(
+                            {"WARNING"},
+                            f"Robust patch: duplicate gfmodel_submesh_index values found (keeping first): {sorted(set(duplicates))[:12]}",
+                        )
+                    if not tagged_all:
+                        raise ValueError(
+                            "No tagged meshes found (gfmodel_submesh_index); import via GFModel Archive and select a mesh object"
+                        )
+
+                    auto_route_new = bool(
+                        getattr(self, "grow_buffers_auto_route_new_meshes", False)
+                    )
+                    tmp_objects: List[bpy.types.Object] = []
+                    try:
+                        if auto_route_new:
+                            if str(rebuild_mode) != "CLAMP_ROUTE":
+                                raise ValueError(
+                                    "Auto-route new meshes currently requires Rebuild Mode=Clamp/Route (No Rebuild)"
+                                )
+
+                            skel_set = set(str(n) for n in (skeleton_names or []))
+
+                            def _base_mat_name(n: str) -> str:
+                                s = str(n or "")
+                                if len(s) > 4 and s[-4] == "." and s[-3:].isdigit():
+                                    return s[:-4]
+                                return s
+
+                            model_mat_names: List[str] = []
+                            try:
+                                seen = set()
+                                for sm in getattr(model, "submeshes", []) or []:
+                                    mn = str(getattr(sm, "name", "") or "").strip()
+                                    if not mn or mn in seen:
+                                        continue
+                                    seen.add(mn)
+                                    model_mat_names.append(mn)
+                            except Exception:
+                                model_mat_names = []
+
+                            new_meshes: List[bpy.types.Object] = []
+                            for o in objs:
+                                if o is None or getattr(o, "type", "") != "MESH":
+                                    continue
+                                if o.get("gfmodel_submesh_index") is not None:
+                                    continue
+                                if o.get("gfmodel_model_name") == model.name:
+                                    continue
+
+                                ok = False
+                                try:
+                                    for vg in getattr(o, "vertex_groups", []) or []:
+                                        if str(getattr(vg, "name", "") or "") in skel_set:
+                                            ok = True
+                                            break
+                                except Exception:
+                                    ok = False
+                                if not ok:
+                                    try:
+                                        for m in getattr(o, "modifiers", []) or []:
+                                            if str(getattr(m, "type", "") or "") == "ARMATURE":
+                                                ok = True
+                                                break
+                                    except Exception:
+                                        ok = False
+                                if not ok:
+                                    continue
+                                new_meshes.append(o)
+
+                            additions_by_si: Dict[
+                                int,
+                                List[
+                                    Tuple[
+                                        bpy.types.Object,
+                                        List[Tuple[int, int, int, int, int, int]],
+                                        Optional[Dict[int, List[Tuple[str, float]]]],
+                                    ]
+                                ],
+                            ] = {}
+                            total_dropped = 0
+                            total_clamped = 0
+                            total_routed = 0
+
+                            for src_obj in new_meshes:
+                                obj_mats = set()
+                                try:
+                                    for ms in getattr(src_obj, "material_slots", []) or []:
+                                        bm = getattr(ms, "material", None)
+                                        nm = str(getattr(bm, "name", "") or "")
+                                        if nm:
+                                            obj_mats.add(_base_mat_name(nm))
+                                except Exception:
+                                    obj_mats = set()
+
+                                for mat_name in model_mat_names:
+                                    if obj_mats and _base_mat_name(mat_name) not in obj_mats:
+                                        continue
+                                    (
+                                        tris_by_si,
+                                        weights_override_by_si,
+                                        stats,
+                                        extra,
+                                    ) = _route_source_object_to_submesh_slots(
+                                        model,
+                                        material_name=str(mat_name),
+                                        src_obj=src_obj,
+                                        skeleton_names=skeleton_names,
+                                        routing_strategy=str(self.grow_buffers_routing_strategy),
+                                        weight_cutoff=float(getattr(self, "grow_buffers_weight_cutoff", 0.0)),
+                                        conflict_mode=str(clamp_conflict_mode),
+                                    )
+                                    total_dropped += int(stats.get("dropped", 0) or 0)
+                                    total_clamped += int(stats.get("clamped", 0) or 0)
+                                    for si, tris in (tris_by_si or {}).items():
+                                        if not tris:
+                                            continue
+                                        total_routed += int(len(tris))
+                                        additions_by_si.setdefault(int(si), []).append(
+                                            (
+                                                src_obj,
+                                                list(tris),
+                                                (weights_override_by_si or {}).get(int(si)),
+                                            )
+                                        )
+                                    if extra.get("unknown_bones"):
+                                        self.report(
+                                            {"WARNING"},
+                                            "Auto-route: unknown bones; dropped triangles (see console for details)",
+                                        )
+
+                            if total_clamped > 0:
+                                self.report(
+                                    {"WARNING"},
+                                    f"Auto-route: clamped {int(total_clamped)} triangle(s) (weight trimming)",
+                                )
+                            if total_dropped > 0:
+                                self.report(
+                                    {"WARNING"},
+                                    f"Auto-route: dropped {int(total_dropped)} triangle(s) (no slot / unknown bones)",
+                                )
+
+                            for si, adds in additions_by_si.items():
+                                base_obj = tagged_all.get(int(si))
+                                if base_obj is None or getattr(base_obj, "type", "") != "MESH":
+                                    continue
+                                base_tris = _collect_tris_all(base_obj)
+                                sources = [(base_obj, base_obj.data, base_tris, None)]
+                                for src_obj, tris, ow in adds:
+                                    sources.append((src_obj, src_obj.data, tris, ow))
+                                tmp = _build_temp_mesh_object_for_sources(
+                                    name=f"__gf_tmp_autoroute_{model.name}_{si}",
+                                    sources=sources,
+                                )
+                                _apply_uv_strategy_to_mesh(tmp.data, strategy=uv_strategy)
+                                tmp_objects.append(tmp)
+                                tagged_all[int(si)] = tmp
+
+                            if total_routed > 0:
+                                self.report(
+                                    {"INFO"},
+                                    f"Auto-route: routed {int(total_routed)} triangle(s) from {len(new_meshes)} mesh(es)",
+                                )
+
+                        out_bytes, changed = _patch_pack_grow_buffers_tris(
+                            pack_src,
+                            model,
+                            tagged=tagged_all,
+                            gf_from_blender=gf_from_blender,
+                            global_scale=float(global_scale),
+                            skeleton_names=skeleton_names,
+                            disallow_new_mesh_sections=bool(disallow_new_mesh_sections),
+                            allow_palette_rebuild=bool(allow_palette_rebuild),
+                            allow_palette_split=bool(allow_palette_split),
+                        )
+                    finally:
+                        for o in tmp_objects:
+                            try:
+                                m = getattr(o, "data", None)
+                                bpy.data.objects.remove(o, do_unlink=True)
+                                if m is not None:
+                                    bpy.data.meshes.remove(m, do_unlink=True)
+                            except Exception:
+                                pass
                 mapping_raw = str(self.grow_buffers_material_sources_json or "").strip()
-                if mapping_raw:
+                if (not patch_all) and mapping_raw:
                     try:
                         mat_to_obj = json.loads(mapping_raw)
                     except Exception as e:
@@ -338,11 +626,11 @@ def export_scene_execute(self, context: bpy.types.Context):
                                 tmp = _build_temp_mesh_object_for_slot(
                                     name=f"__gf_tmp_{model.name}_{mat_name}_{si0}",
                                     src_obj=src_obj,
-                                    src_mesh=src_obj.data,                          
+                                    src_mesh=src_obj.data,
                                     tri_verts=tris,
                                 )
                                 _apply_uv_strategy_to_mesh(
-                                    tmp.data,                          
+                                    tmp.data,
                                     strategy=uv_strategy,
                                 )
                                 tmp_objects.append(tmp)
@@ -389,14 +677,14 @@ def export_scene_execute(self, context: bpy.types.Context):
                                 tmp = _build_temp_mesh_object_for_slot(
                                     name=f"__gf_tmp_{model.name}_{mat_name}_{si}",
                                     src_obj=src_obj,
-                                    src_mesh=src_obj.data,                          
+                                    src_mesh=src_obj.data,
                                     tri_verts=tris,
                                     weights_override_by_src_vi=weights_override_by_si.get(
                                         int(si)
                                     ),
                                 )
                                 _apply_uv_strategy_to_mesh(
-                                    tmp.data,                          
+                                    tmp.data,
                                     strategy=uv_strategy,
                                 )
                                 tmp_objects.append(tmp)
@@ -503,7 +791,7 @@ def export_scene_execute(self, context: bpy.types.Context):
                                     bpy.data.meshes.remove(m, do_unlink=True)
                                 except Exception:
                                     pass
-                else:
+                elif not patch_all:
                     active_si = int(active_obj.get("gfmodel_submesh_index"))
                     tmp_objects: List[bpy.types.Object] = []
                     try:
@@ -512,11 +800,11 @@ def export_scene_execute(self, context: bpy.types.Context):
                             tmp = _build_temp_mesh_object_for_slot(
                                 name=f"__gf_tmp_{model.name}_uv_{active_si}",
                                 src_obj=active_obj,
-                                src_mesh=active_obj.data,                          
+                                src_mesh=active_obj.data,
                                 tri_verts=tris,
                             )
                             _apply_uv_strategy_to_mesh(
-                                tmp.data,                          
+                                tmp.data,
                                 strategy=uv_strategy,
                             )
                             tmp_objects.append(tmp)
@@ -802,14 +1090,14 @@ def export_scene_execute(self, context: bpy.types.Context):
             smi = None
             if ao is not None:
                 try:
-                    smi = ao.get("gfmodel_submesh_index")                              
+                    smi = ao.get("gfmodel_submesh_index")
                 except Exception:
                     smi = None
             if (
                 ao is None
                 or getattr(ao, "type", "") != "MESH"
                 or not isinstance(smi, int)
-                or ao.get("gfmodel_model_name") != model.name                              
+                or ao.get("gfmodel_model_name") != model.name
             ):
                 raise ValueError(
                     "Rebuild Active Submesh requires selecting an imported GFModel mesh object (tagged gfmodel_submesh_index) as the active object"

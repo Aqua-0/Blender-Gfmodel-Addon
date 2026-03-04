@@ -1,4 +1,4 @@
-"""Debug/diff dump operators for the GFModel Blender add-on."""
+
 
 from __future__ import annotations
 
@@ -33,12 +33,12 @@ class GFModel_OT_dump_action_json(bpy.types.Operator, ExportHelper):
         default=False,
         description="Dump frames from Scene Start/End instead of the action's frame range",
     )
-    frame_start: bpy.props.IntProperty(                              
+    frame_start: bpy.props.IntProperty(
         name="Start Frame",
         default=0,
         min=-100000,
     )
-    frame_end: bpy.props.IntProperty(                              
+    frame_end: bpy.props.IntProperty(
         name="End Frame",
         default=0,
         min=-100000,
@@ -171,17 +171,17 @@ class GFModel_OT_dump_eval_json(bpy.types.Operator, ExportHelper):
     filename_ext = ".json"
     filter_glob: StringProperty(default="*.json", options={"HIDDEN"})
 
-    motion_index: bpy.props.IntProperty(                              
+    motion_index: bpy.props.IntProperty(
         name="Motion Index",
         default=0,
         min=0,
     )
-    frame_start: bpy.props.IntProperty(                              
+    frame_start: bpy.props.IntProperty(
         name="Start Frame",
         default=0,
         min=0,
     )
-    frame_end: bpy.props.IntProperty(                              
+    frame_end: bpy.props.IntProperty(
         name="End Frame (0=auto)",
         default=0,
         min=0,
@@ -234,7 +234,7 @@ class GFModel_OT_dump_eval_json(bpy.types.Operator, ExportHelper):
         else:
             conv = Matrix.Identity(4)
 
-                                                                                                                
+
         rest_world = _compute_rest_world_mats(model, conv, global_scale, ssc=False)
 
         end_default = max(0, int(mot.frames_count) - 1)
@@ -338,17 +338,17 @@ class GFModel_OT_dump_vertices_json(bpy.types.Operator, ExportHelper):
     filename_ext = ".json"
     filter_glob: StringProperty(default="*.json", options={"HIDDEN"})
 
-    model_index: bpy.props.IntProperty(                              
+    model_index: bpy.props.IntProperty(
         name="Model Index",
         default=0,
         min=0,
     )
-    submesh_index: bpy.props.IntProperty(                              
+    submesh_index: bpy.props.IntProperty(
         name="Submesh Index (-1=all)",
         default=-1,
         min=-1,
     )
-    max_vertices: bpy.props.IntProperty(                              
+    max_vertices: bpy.props.IntProperty(
         name="Max Vertices (0=all)",
         default=512,
         min=0,
@@ -537,7 +537,7 @@ class GFModel_OT_dump_rest_compare_json(bpy.types.Operator, ExportHelper):
 
         gf_rest_world = _compute_rest_world_mats(model, conv, global_scale, ssc=False)
 
-                                                           
+
         bl_rest_world: Dict[str, Matrix] = {}
         for pb in arm_obj.pose.bones:
             bl_rest_world[pb.name] = pb.bone.matrix_local.copy()

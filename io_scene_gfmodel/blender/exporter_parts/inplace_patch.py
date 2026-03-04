@@ -1,4 +1,4 @@
-"""In-place patching helpers (edit existing buffers without reallocation)."""
+
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def _patch_submesh_positions_in_place(
     gf_from_blender: Matrix,
     global_scale: float,
 ) -> Tuple[Vector, Vector]:
-    mesh: bpy.types.Mesh = obj.data                            
+    mesh: bpy.types.Mesh = obj.data
     if int(len(mesh.vertices)) != int(sm.vertex_count):
         raise ValueError(
             f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -92,7 +92,7 @@ def _patch_pack_positions_in_place(
     gf_from_blender: Matrix,
     global_scale: float,
 ) -> Tuple[bytes, int]:
-    """Return patched pack bytes where only position bytes inside vertex buffers change."""
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -100,7 +100,7 @@ def _patch_pack_positions_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
                 f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -116,8 +116,8 @@ def _patch_pack_positions_in_place(
 
         comp_size = len(_pack_attr_value(int(pos_attr.fmt), float(pos_attr.scale), 0.0))
         stride = int(sm.vertex_stride)
-                                                                                             
-                                                                          
+
+
         base = int(getattr(sm, "raw_buffer_off", 0))
         if base <= 0:
             raise ValueError("Missing/invalid raw_buffer_off for submesh")
@@ -146,7 +146,7 @@ def _patch_pack_normals_in_place(
     tagged: Dict[int, bpy.types.Object],
     gf_from_blender: Matrix,
 ) -> Tuple[bytes, int]:
-    """Return patched pack bytes where only normal bytes inside vertex buffers change."""
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -156,13 +156,13 @@ def _patch_pack_normals_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
 
         try:
             if hasattr(mesh, "calc_normals_split"):
-                mesh.calc_normals_split()                              
+                mesh.calc_normals_split()
             elif hasattr(mesh, "calc_normals"):
-                mesh.calc_normals()                              
+                mesh.calc_normals()
         except Exception:
             pass
 
@@ -174,7 +174,7 @@ def _patch_pack_normals_in_place(
         offs = _vertex_attr_offsets(sm)
         nrm_off = offs.get(1)
         if nrm_off is None:
-                                                                
+
             continue
         nrm_attr = next((a for a in sm.attributes if int(a.name) == 1), None)
         if nrm_attr is None or int(nrm_attr.elements) < 3:
@@ -290,7 +290,7 @@ def _patch_pack_uv0_in_place(
     *,
     tagged: Dict[int, bpy.types.Object],
 ) -> Tuple[bytes, int]:
-    """Return patched pack bytes where only UV0 bytes inside vertex buffers change."""
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -298,7 +298,7 @@ def _patch_pack_uv0_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
                 f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -310,8 +310,8 @@ def _patch_pack_uv0_in_place(
         if uv_layer is None:
             continue
 
-                                                                                             
-                                                      
+
+
         uv_by_v: List[Optional[Tuple[float, float]]] = [None] * int(len(mesh.vertices))
         try:
             for poly in mesh.polygons:
@@ -361,7 +361,7 @@ def _patch_pack_indices_in_place(
     *,
     tagged: Dict[int, bpy.types.Object],
 ) -> Tuple[bytes, int]:
-    """Patch only index buffer bytes in-place (requires no index count change)."""
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -369,7 +369,7 @@ def _patch_pack_indices_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
 
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
@@ -381,9 +381,9 @@ def _patch_pack_indices_in_place(
                 f"Index in-place patch currently supports primitive_mode=0 (Triangles) only; submesh {sm.name!r} has {int(sm.primitive_mode)}"
             )
 
-                                                          
+
         try:
-            mesh.calc_loop_triangles()                              
+            mesh.calc_loop_triangles()
         except Exception:
             pass
         tris = getattr(mesh, "loop_triangles", None)
@@ -423,7 +423,7 @@ def _patch_pack_indices_in_place(
                     f"Index too large for u8 index buffer for submesh {sm.name!r}: {i}"
                 )
 
-                                                                         
+
         raw_len = int(old_count) * int(elem_size)
         if base < 0 or base + raw_len > len(out):
             raise ValueError("Index write out of range (bad offsets/length)")
@@ -438,7 +438,7 @@ def _patch_pack_indices_in_place(
             raise ValueError("Internal error: encoded index byte length mismatch")
         if old_bytes != new_bytes:
             out[base : base + raw_len] = new_bytes
-                                                 
+
             if elem_size == 2:
                 for j in range(old_count):
                     if old_bytes[j * 2 : j * 2 + 2] != new_bytes[j * 2 : j * 2 + 2]:
@@ -454,7 +454,7 @@ def _patch_pack_indices_in_place(
 def _pica_iter_cmds_with_param_indices(
     cmds: Sequence[int],
 ) -> Iterable[Tuple[int, int, List[int]]]:
-    """Yield (reg, first_param_index, params_u32)."""
+
     i = 0
     n = int(len(cmds))
     while i + 1 < n:
@@ -467,7 +467,7 @@ def _pica_iter_cmds_with_param_indices(
         extra = int((cmd >> 20) & 0x7FF)
         consecutive = (cmd >> 31) != 0
         if consecutive:
-                                                           
+
             for j in range(extra + 1):
                 yield (int(reg + j), int(start_param_index + j), [int(param0)])
                 if j < extra:
@@ -494,11 +494,11 @@ def _patch_pack_topology_tris_in_place(
     *,
     tagged: Dict[int, bpy.types.Object],
 ) -> Tuple[bytes, int]:
-    """Patch index buffer bytes + index counts in-place (triangles only, vertex count fixed).
 
-    This supports deleting faces (reducing triangle/index count) and adding faces only as long
-    as the new index stream fits within the existing allocated `index_data_len`.
-    """
+
+
+
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -506,7 +506,7 @@ def _patch_pack_topology_tris_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
 
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
@@ -518,9 +518,9 @@ def _patch_pack_topology_tris_in_place(
                 f"Topology in-place patch currently supports primitive_mode=0 (Triangles) only; submesh {sm.name!r} has {int(sm.primitive_mode)}"
             )
 
-                                           
+
         try:
-            mesh.calc_loop_triangles()                              
+            mesh.calc_loop_triangles()
         except Exception:
             pass
         tris = getattr(mesh, "loop_triangles", None)
@@ -563,7 +563,7 @@ def _patch_pack_topology_tris_in_place(
                     f"Index too large for u8 index buffer for submesh {sm.name!r}: {i}"
                 )
 
-                        
+
         if elem_size == 2:
             new_bytes = b"".join(struct.pack("<H", int(i)) for i in new_indices)
             zero = b"\x00\x00"
@@ -576,14 +576,14 @@ def _patch_pack_topology_tris_in_place(
             raise ValueError("Index write out of range (bad offsets/length)")
 
         old_bytes = bytes(out[base : base + idx_len])
-                                                                   
+
         out[base : base + idx_len] = new_bytes + (
             zero * (max_indices - len(new_indices))
         )
         if bytes(out[base : base + idx_len]) != old_bytes:
             changed += 1
 
-                                                          
+
         idx_count_off = int(getattr(sm, "index_count_off", 0) or 0)
         if idx_count_off <= 0 or idx_count_off + 4 > len(out):
             raise ValueError(
@@ -591,11 +591,11 @@ def _patch_pack_topology_tris_in_place(
             )
         old_decl = struct.unpack_from("<i", out, idx_count_off)[0]
         if int(old_decl) != int(len(sm.indices)):
-                                                                                          
+
             pass
         struct.pack_into("<i", out, idx_count_off, int(len(new_indices)))
 
-                                                                                                   
+
         index_cmds_off = int(getattr(sm, "index_cmds_off", 0) or 0)
         index_cmds_len_u32 = int(getattr(sm, "index_cmds_len_u32", 0) or 0)
         if index_cmds_off <= 0 or index_cmds_len_u32 <= 0:
@@ -629,13 +629,13 @@ def _patch_pack_verts_topology_tris_in_place(
     global_scale: float,
     skeleton_names: List[str],
 ) -> Tuple[bytes, int]:
-    """Patch vertex+index buffers in-place (triangles only), allowing vertex/index count changes.
 
-    Constraints:
-    - No stride/layout changes (uses source `sm.attributes` + `sm.vertex_stride`).
-    - New vertex count must fit within allocated vertex buffer length (len(sm.raw_buffer)).
-    - New index count must fit within allocated index buffer length (`sm.index_data_len`).
-    """
+
+
+
+
+
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -645,7 +645,7 @@ def _patch_pack_verts_topology_tris_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
 
         if int(sm.primitive_mode) != 0:
             raise ValueError(
@@ -671,7 +671,7 @@ def _patch_pack_verts_topology_tris_in_place(
                 f"New vertex count exceeds allocated capacity for submesh {sm.name!r}: new={new_vcount} cap={cap_verts} (vtx_len={vtx_len}, stride={stride})"
             )
 
-                                                                   
+
         uv_layer = None
         if getattr(mesh, "uv_layers", None):
             uv_layer = mesh.uv_layers.active or mesh.uv_layers[0]
@@ -689,7 +689,7 @@ def _patch_pack_verts_topology_tris_in_place(
             except Exception:
                 pass
 
-                                                             
+
         col_by_v: List[Tuple[float, float, float, float]] = [
             (1.0, 1.0, 1.0, 1.0)
         ] * new_vcount
@@ -728,7 +728,7 @@ def _patch_pack_verts_topology_tris_in_place(
         bi_attr = next((a for a in sm.attributes if int(a.name) == 7), None)
         bw_attr = next((a for a in sm.attributes if int(a.name) == 8), None)
 
-                                                                                      
+
         weights_by_v: List[List[Tuple[int, float]]] = [[] for _ in range(new_vcount)]
         pal_count = int(getattr(sm, "bone_indices_count", 0) or 0)
         if bi_attr is not None or bw_attr is not None:
@@ -765,7 +765,7 @@ def _patch_pack_verts_topology_tris_in_place(
             raise ValueError("Vertex buffer range out of file bounds")
         templ_bytes = bytes(out[base_vtx : base_vtx + stride])
 
-                                                                                              
+
         for i, v in enumerate(mesh.vertices):
             src = (
                 bytes(out[base_vtx + i * stride : base_vtx + (i + 1) * stride])
@@ -930,9 +930,9 @@ def _patch_pack_verts_topology_tris_in_place(
             )
         struct.pack_into("<i", out, vtx_count_off, int(new_vcount))
 
-                                      
+
         try:
-            mesh.calc_loop_triangles()                              
+            mesh.calc_loop_triangles()
         except Exception:
             pass
         tris = getattr(mesh, "loop_triangles", None)
@@ -1015,7 +1015,7 @@ def _patch_pack_skin_in_place(
     tagged: Dict[int, bpy.types.Object],
     skeleton_names: List[str],
 ) -> Tuple[bytes, int, int]:
-    """Patch BoneIndex(7) + BoneWeight(8) attributes in-place (requires both as dynamic attributes)."""
+
     out = bytearray(pack_src)
     changed = 0
     fallback = 0
@@ -1024,7 +1024,7 @@ def _patch_pack_skin_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
                 f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -1032,7 +1032,7 @@ def _patch_pack_skin_in_place(
 
         attr_names = set(int(a.name) for a in (sm.attributes or []))
         if 7 not in attr_names and 8 not in attr_names:
-                                                                
+
             continue
         if not (7 in attr_names and 8 in attr_names):
             raise ValueError(
@@ -1096,8 +1096,8 @@ def _patch_pack_skin_in_place(
             if s > 0:
                 weights = [max(0.0, w) / s for w in weights]
             else:
-                                                                                                
-                                                                                   
+
+
                 indices[0] = 0
                 weights[0] = 1.0
                 fallback += 1

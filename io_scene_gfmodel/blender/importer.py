@@ -1,7 +1,7 @@
-"""Blender import implementation for GFModel.
 
-Contains mesh/armature/material creation and the import operator.
-"""
+
+
+
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def _bone_uses_ssc(flags: int) -> bool:
 
 
 def _triangulate(indices: Sequence[int], prim: int) -> List[Tuple[int, int, int]]:
-    if prim == 0:             
+    if prim == 0:
         tris: List[Tuple[int, int, int]] = []
         for i in range(0, len(indices) - 2, 3):
             a, b, c = indices[i], indices[i + 1], indices[i + 2]
@@ -55,7 +55,7 @@ def _triangulate(indices: Sequence[int], prim: int) -> List[Tuple[int, int, int]
                 continue
             tris.append((a, b, c))
         return tris
-    if prim == 1:                 
+    if prim == 1:
         tris = []
         flip = False
         for i in range(len(indices) - 2):
@@ -66,7 +66,7 @@ def _triangulate(indices: Sequence[int], prim: int) -> List[Tuple[int, int, int]
             tris.append((a, c, b) if flip else (a, b, c))
             flip = not flip
         return tris
-    if prim == 2:               
+    if prim == 2:
         if len(indices) < 3:
             return []
         center = indices[0]
@@ -107,7 +107,7 @@ def _read_vertices(
 
     for vi in range(count):
         o = vi * stride
-                                                                               
+
         local = o
         bone_indices: List[int] = []
         bone_weights: List[float] = []
@@ -141,19 +141,19 @@ def _read_vertices(
             for ei in range(attr.elements):
                 elems[ei] = read_elem(attr.fmt)
             v4 = Vector((elems[0], elems[1], elems[2], elems[3])) * attr.scale
-            if attr.name == 0:            
+            if attr.name == 0:
                 pos[vi] = Vector((v4.x, v4.y, v4.z))
-            elif attr.name == 1:          
+            elif attr.name == 1:
                 nrm[vi] = Vector((v4.x, v4.y, v4.z))
-            elif attr.name == 3:         
+            elif attr.name == 3:
                 col[vi] = Vector((v4.x, v4.y, v4.z, v4.w))
-            elif attr.name == 4:             
+            elif attr.name == 4:
                 uv0[vi] = Vector((v4.x, v4.y))
-            elif attr.name == 7:             
+            elif attr.name == 7:
                 bone_indices.extend(
                     [int(v4.x), int(v4.y), int(v4.z), int(v4.w)][: attr.elements]
                 )
-            elif attr.name == 8:              
+            elif attr.name == 8:
                 bone_weights.extend(
                     [float(v4.x), float(v4.y), float(v4.z), float(v4.w)][
                         : attr.elements
@@ -254,8 +254,7 @@ def _make_material(
         tex_node.image = textures[tex_name]
         tex_node.location = (x, y)
         tex_node.interpolation = "Linear"
-                                                                                    
-                                                                               
+
         tex_node.extension = "REPEAT"
         nt.links.new(texcoord.outputs["UV"], mapping.inputs["Vector"])
         nt.links.new(mapping.outputs["Vector"], tex_node.inputs["Vector"])
@@ -321,9 +320,9 @@ def _make_material(
         x: float,
         y: float,
     ) -> bpy.types.NodeSocket:
-        if operand_id == 0:         
+        if operand_id == 0:
             return color
-        if operand_id == 1:                 
+        if operand_id == 1:
             one = _vec_one(x - 200, y, "One")
             sub = nt.nodes.new("ShaderNodeVectorMath")
             sub.operation = "SUBTRACT"
@@ -331,14 +330,14 @@ def _make_material(
             nt.links.new(one.outputs["Vector"], sub.inputs[0])
             nt.links.new(color, sub.inputs[1])
             return sub.outputs["Vector"]
-        if operand_id == 2:         
+        if operand_id == 2:
             comb = nt.nodes.new("ShaderNodeCombineXYZ")
             comb.location = (x, y)
             nt.links.new(alpha, comb.inputs["X"])
             nt.links.new(alpha, comb.inputs["Y"])
             nt.links.new(alpha, comb.inputs["Z"])
             return comb.outputs["Vector"]
-        if operand_id == 3:                 
+        if operand_id == 3:
             one = _node_value(1.0, x - 250, y, "1")
             inv = nt.nodes.new("ShaderNodeMath")
             inv.operation = "SUBTRACT"
@@ -392,9 +391,9 @@ def _make_material(
         x: float,
         y: float,
     ) -> bpy.types.NodeSocket:
-        if operand_id == 0:         
+        if operand_id == 0:
             return alpha
-        if operand_id == 1:                 
+        if operand_id == 1:
             one = _node_value(1.0, x - 160, y, "1")
             sub = nt.nodes.new("ShaderNodeMath")
             sub.operation = "SUBTRACT"
@@ -433,7 +432,7 @@ def _make_material(
     def _clamp01_vec(
         inp: bpy.types.NodeSocket, x: float, y: float
     ) -> bpy.types.NodeSocket:
-                                                                                                 
+
         v0 = _node_const_vec3((0.0, 0.0, 0.0), x - 250, y + 0, "ClampMin0")
         v1 = _node_const_vec3((1.0, 1.0, 1.0), x - 250, y - 140, "ClampMax1")
         vmin = nt.nodes.new("ShaderNodeVectorMath")
@@ -464,23 +463,23 @@ def _make_material(
         x: float,
         y: float,
     ) -> bpy.types.NodeSocket:
-        if mode == 0:           
+        if mode == 0:
             return a
-        if mode == 1:            
+        if mode == 1:
             mul = nt.nodes.new("ShaderNodeVectorMath")
             mul.operation = "MULTIPLY"
             mul.location = (x, y)
             nt.links.new(a, mul.inputs[0])
             nt.links.new(b, mul.inputs[1])
             return mul.outputs["Vector"]
-        if mode == 2:       
+        if mode == 2:
             add = nt.nodes.new("ShaderNodeVectorMath")
             add.operation = "ADD"
             add.location = (x, y)
             nt.links.new(a, add.inputs[0])
             nt.links.new(b, add.inputs[1])
             return add.outputs["Vector"]
-        if mode == 3:                      
+        if mode == 3:
             add = nt.nodes.new("ShaderNodeVectorMath")
             add.operation = "ADD"
             add.location = (x - 120, y)
@@ -493,8 +492,7 @@ def _make_material(
             nt.links.new(add.outputs["Vector"], sub.inputs[0])
             nt.links.new(half.outputs["Vector"], sub.inputs[1])
             return sub.outputs["Vector"]
-        if mode == 4:               
-                           
+        if mode == 4:
             inv = nt.nodes.new("ShaderNodeVectorMath")
             inv.operation = "SUBTRACT"
             inv.location = (x - 240, y - 120)
@@ -517,14 +515,14 @@ def _make_material(
             nt.links.new(a_mul.outputs["Vector"], add.inputs[0])
             nt.links.new(b_mul.outputs["Vector"], add.inputs[1])
             return add.outputs["Vector"]
-        if mode == 5:            
+        if mode == 5:
             sub = nt.nodes.new("ShaderNodeVectorMath")
             sub.operation = "SUBTRACT"
             sub.location = (x, y)
             nt.links.new(a, sub.inputs[0])
             nt.links.new(b, sub.inputs[1])
             return sub.outputs["Vector"]
-        if mode == 8:           
+        if mode == 8:
             mul = nt.nodes.new("ShaderNodeVectorMath")
             mul.operation = "MULTIPLY"
             mul.location = (x - 120, y)
@@ -536,7 +534,7 @@ def _make_material(
             nt.links.new(mul.outputs["Vector"], add.inputs[0])
             nt.links.new(c, add.inputs[1])
             return add.outputs["Vector"]
-        if mode == 9:           
+        if mode == 9:
             add = nt.nodes.new("ShaderNodeVectorMath")
             add.operation = "ADD"
             add.location = (x - 120, y)
@@ -558,23 +556,23 @@ def _make_material(
         x: float,
         y: float,
     ) -> bpy.types.NodeSocket:
-        if mode == 0:           
+        if mode == 0:
             return a
-        if mode == 1:            
+        if mode == 1:
             mul = nt.nodes.new("ShaderNodeMath")
             mul.operation = "MULTIPLY"
             mul.location = (x, y)
             nt.links.new(a, mul.inputs[0])
             nt.links.new(b, mul.inputs[1])
             return mul.outputs[0]
-        if mode == 2:       
+        if mode == 2:
             add = nt.nodes.new("ShaderNodeMath")
             add.operation = "ADD"
             add.location = (x, y)
             nt.links.new(a, add.inputs[0])
             nt.links.new(b, add.inputs[1])
             return add.outputs[0]
-        if mode == 3:                      
+        if mode == 3:
             add = nt.nodes.new("ShaderNodeMath")
             add.operation = "ADD"
             add.location = (x - 120, y)
@@ -586,8 +584,7 @@ def _make_material(
             nt.links.new(add.outputs[0], sub.inputs[0])
             sub.inputs[1].default_value = 0.5
             return sub.outputs[0]
-        if mode == 4:               
-                           
+        if mode == 4:
             inv = nt.nodes.new("ShaderNodeMath")
             inv.operation = "SUBTRACT"
             inv.location = (x - 240, y - 120)
@@ -609,14 +606,14 @@ def _make_material(
             nt.links.new(a_mul.outputs[0], add.inputs[0])
             nt.links.new(b_mul.outputs[0], add.inputs[1])
             return add.outputs[0]
-        if mode == 5:            
+        if mode == 5:
             sub = nt.nodes.new("ShaderNodeMath")
             sub.operation = "SUBTRACT"
             sub.location = (x, y)
             nt.links.new(a, sub.inputs[0])
             nt.links.new(b, sub.inputs[1])
             return sub.outputs[0]
-        if mode == 8:           
+        if mode == 8:
             mul = nt.nodes.new("ShaderNodeMath")
             mul.operation = "MULTIPLY"
             mul.location = (x - 120, y)
@@ -628,7 +625,7 @@ def _make_material(
             nt.links.new(mul.outputs[0], add.inputs[0])
             nt.links.new(c, add.inputs[1])
             return add.outputs[0]
-        if mode == 9:           
+        if mode == 9:
             add = nt.nodes.new("ShaderNodeMath")
             add.operation = "ADD"
             add.location = (x - 120, y)
@@ -691,31 +688,28 @@ def _make_material(
             return tex_nodes[1].outputs["Color"], tex_nodes[1].outputs["Alpha"]
         if source_id == 5 and 2 in tex_nodes:
             return tex_nodes[2].outputs["Color"], tex_nodes[2].outputs["Alpha"]
-        if source_id == 14:            
+        if source_id == 14:
             rgb = (stage_const_rgba[0], stage_const_rgba[1], stage_const_rgba[2])
             col = _node_rgb(rgb, -900, -950, "TexEnv Constant").outputs["Color"]
             a = _node_value(
                 stage_const_rgba[3], -900, -980, "TexEnv Constant A"
             ).outputs[0]
             return col, a
-        if source_id == 13:                  
+        if source_id == 13:
             return buf_c, buf_a
-        if source_id == 15:            
+        if source_id == 15:
             return prev_c, prev_a
-                                                  
-                                                                                   
+
         if source_id in (0, 1, 2):
             attr = nt.nodes.new("ShaderNodeVertexColor")
             attr.layer_name = "Col"
             attr.location = (-900, -860)
             return attr.outputs["Color"], attr.outputs["Alpha"]
-                         
+
         white = _node_rgb((1.0, 1.0, 1.0), -900, -820, "White")
         one = _node_value(1.0, -900, -850, "1")
         return white.outputs["Color"], one.outputs[0]
 
-                                                                                                    
-                                                                                             
     sh_preview = shader_by_name.get(mat_def.frag_shader)
     if sh_preview and sh_preview.texenv_stages:
         stage_consts: List[Tuple[float, float, float, float]] = []
@@ -725,7 +719,6 @@ def _make_material(
             else:
                 stage_consts.append(_decode_rgba_u32(int(st.color)))
 
-                                  
         prev_color = _node_rgb((1.0, 1.0, 1.0), -850, 250, "PrevInit").outputs["Color"]
         prev_alpha = _node_value(1.0, -850, 220, "PrevInitA").outputs[0]
         if sh_preview.texenv_buffer_color is not None:
@@ -762,7 +755,6 @@ def _make_material(
             col_mode = (comb >> 0) & 0xF
             alp_mode = (comb >> 16) & 0xF
 
-                                              
             c0 = (src >> 0) & 0xF
             c1 = (src >> 4) & 0xF
             c2 = (src >> 8) & 0xF
@@ -770,7 +762,6 @@ def _make_material(
             a1 = (src >> 20) & 0xF
             a2 = (src >> 24) & 0xF
 
-                                                                   
             oc0 = (op >> 0) & 0xF
             oc1 = (op >> 4) & 0xF
             oc2 = (op >> 8) & 0xF
@@ -797,7 +788,6 @@ def _make_material(
             t1c = _op_color(oc1, s1c, s1a, -400, y0 - 60)
             t2c = _op_color(oc2, s2c, s2a, -400, y0 - 120)
 
-                                            
             sa0c, sa0a = _source_sockets(
                 a0, const_rgba, prev_color, prev_alpha, buf_color, buf_alpha
             )
@@ -838,14 +828,11 @@ def _make_material(
         nt.links.new(prev_color, bsdf.inputs["Base Color"])
         nt.links.new(prev_alpha, bsdf.inputs["Alpha"])
     else:
-                                                           
         if 0 in tex_nodes:
             nt.links.new(tex_nodes[0].outputs["Color"], bsdf.inputs["Base Color"])
 
-                                                                                                  
     mat.blend_method = "OPAQUE"
 
-                                                                                
     resolved_alpha: Optional[float] = None
     sh = shader_by_name.get(mat_def.frag_shader)
     if sh and sh.texenv_stages and sh.texenv_stages[0].combiner is not None:
@@ -868,9 +855,6 @@ def _make_material(
         if hasattr(mat, "alpha_threshold"):
             mat.alpha_threshold = float(mat_def.alpha_test_ref)
 
-                                     
-                                                        
-                                                                                                                 
     try:
         if mat_def.face_culling == 2:
             mat.use_backface_culling = True
@@ -880,7 +864,6 @@ def _make_material(
     except Exception:
         pass
 
-                                                                 
     try:
         sh = shader_by_name.get(mat_def.frag_shader)
         mat["gfmodel_pica"] = json.dumps(
@@ -1029,13 +1012,8 @@ def _build_armature(
         s = Matrix.Diagonal(Vector((b.scale.x, b.scale.y, b.scale.z, 1.0)))
         return t @ r @ s
 
-                                                                                                          
-                                                                                                
     rest_world = _compute_rest_world_mats(model, conv, global_scale, ssc=False)
 
-                                                                 
-                                                                                                
-                                                                                                    
     for b in model.skeleton:
         eb = arm_data.edit_bones.new(b.name)
         bones_by_name[b.name] = eb
@@ -1051,8 +1029,6 @@ def _build_armature(
         head = loc
         rot3 = rot.to_matrix()
 
-                                                                                                         
-                                                                                                    
         length = max(0.01, 0.05 * global_scale)
         y_axis = rot3 @ Vector((0.0, 1.0, 0.0))
         if y_axis.length == 0:
@@ -1063,7 +1039,6 @@ def _build_armature(
         eb.head = head
         eb.tail = head + y_axis * length
 
-                                                                     
         try:
             z_axis = rot3 @ Vector((0.0, 0.0, 1.0))
             if z_axis.length != 0:
@@ -1074,9 +1049,6 @@ def _build_armature(
 
     bpy.ops.object.mode_set(mode="OBJECT")
 
-                                                        
-                                                                                                      
-                                                                                                  
     for pb in arm_obj.pose.bones:
         try:
             pb.bone.inherit_scale = "FULL"
@@ -1084,9 +1056,6 @@ def _build_armature(
             pass
     return arm_obj
 
-                                                        
-                                                                                                      
-                                                                                                  
     for pb in arm_obj.pose.bones:
         try:
             pb.bone.inherit_scale = "FULL"
@@ -1117,6 +1086,41 @@ def _import_model_to_blender(
 
     coll = bpy.data.collections.new(f"GFModel_{model.name}")
     ctx.scene.collection.children.link(coll)
+    try:
+        ctx.scene["gfmodel_last_import_collection"] = str(coll.name)
+    except Exception:
+        pass
+    try:
+        coll["gfmodel_last_import_path"] = str(
+            ctx.scene.get("gfmodel_last_import_path", "") or ""
+        )
+        coll["gfmodel_last_import_source"] = str(
+            ctx.scene.get("gfmodel_last_import_source", "") or ""
+        )
+        coll["gfmodel_last_import_breadcrumb"] = str(
+            ctx.scene.get("gfmodel_last_import_breadcrumb", "") or ""
+        )
+        coll["gfmodel_axis_forward"] = str(axis_forward)
+        coll["gfmodel_axis_up"] = str(axis_up)
+        coll["gfmodel_global_scale"] = float(global_scale)
+    except Exception:
+        pass
+
+
+
+    try:
+        plan_json = str(
+            ctx.scene.get("gfmodel_pending_patch_plan_json", "") or ""
+        ).strip()
+        if plan_json:
+            coll["gfmodel_patch_plan_json"] = plan_json
+
+            try:
+                del ctx.scene["gfmodel_pending_patch_plan_json"]
+            except Exception:
+                ctx.scene["gfmodel_pending_patch_plan_json"] = ""
+    except Exception:
+        pass
 
     images: Dict[str, bpy.types.Image] = {}
     if import_textures:
@@ -1130,7 +1134,7 @@ def _import_model_to_blender(
         mats_by_name[m.name] = _make_material(m, images, shader_by_name)
 
     arm_obj = _build_armature(ctx, model, conv, global_scale, coll)
-                                                                                
+
     try:
         arm_obj["gfmodel_source_path"] = str(
             ctx.scene.get("gfmodel_last_import_path", "")
@@ -1138,6 +1142,11 @@ def _import_model_to_blender(
         arm_obj["gfmodel_axis_forward"] = str(axis_forward)
         arm_obj["gfmodel_axis_up"] = str(axis_up)
         arm_obj["gfmodel_global_scale"] = float(global_scale)
+        arm_obj["gfmodel_is_imported"] = 1
+        arm_obj["gfmodel_import_collection"] = str(coll.name)
+        arm_obj["gfmodel_last_import_breadcrumb"] = str(
+            ctx.scene.get("gfmodel_last_import_breadcrumb", "") or ""
+        )
     except Exception:
         pass
 
@@ -1152,8 +1161,6 @@ def _import_model_to_blender(
         if not tris:
             continue
 
-                                                                                        
-                                                                                     
         base_name = f"{model.name}_{sm.name}"
         unique_name = base_name
         if unique_name in bpy.data.meshes:
@@ -1170,25 +1177,32 @@ def _import_model_to_blender(
         obj = bpy.data.objects.new(obj_name, mesh)
         coll.objects.link(obj)
         mesh_objs_by_sm_name[sm.name] = obj
-                                                                                                      
+
         try:
+            obj["gfmodel_is_imported"] = 1
+            obj["gfmodel_import_collection"] = str(coll.name)
+            obj["gfmodel_source_path"] = str(
+                ctx.scene.get("gfmodel_last_import_path", "") or ""
+            )
+            obj["gfmodel_last_import_breadcrumb"] = str(
+                ctx.scene.get("gfmodel_last_import_breadcrumb", "") or ""
+            )
             obj["gfmodel_model_name"] = str(model.name)
             obj["gfmodel_submesh_index"] = int(submesh_index)
             obj["gfmodel_mesh_index"] = int(sm.mesh_index)
             obj["gfmodel_face_index"] = int(sm.face_index)
             obj["gfmodel_material_name"] = str(sm.name)
             obj["gfmodel_mesh_name"] = str(sm.mesh_name)
-                                                                                   
+
             idx_len = int(getattr(sm, "index_data_len", 0) or 0)
             elem = int(getattr(sm, "index_elem_size", 0) or 0)
             if elem not in (1, 2):
-                                                                     
                 elem = 2
             obj["gfmodel_index_data_len"] = int(idx_len)
             obj["gfmodel_index_elem_size"] = int(elem)
             obj["gfmodel_index_capacity"] = int(idx_len // elem) if idx_len > 0 else 0
             obj["gfmodel_index_count_file"] = int(len(sm.indices))
-                                                                                          
+
             stride = int(getattr(sm, "vertex_stride", 0) or 0)
             vtx_len = int(len(getattr(sm, "raw_buffer", b"") or b""))
             obj["gfmodel_vertex_stride"] = int(stride)
@@ -1217,8 +1231,6 @@ def _import_model_to_blender(
                     uv = uvs[vi] if vi < len(uvs) else Vector((0.0, 0.0))
                     uv_layer.data[li].uv = (uv.x, uv.y)
 
-                                                  
-                                                                                     
         try:
             col_attr = mesh.color_attributes.get("Col")
             if col_attr is None:
@@ -1249,7 +1261,6 @@ def _import_model_to_blender(
             for poly in mesh.polygons:
                 poly.material_index = 0
 
-                  
         obj.parent = arm_obj
         mod = obj.modifiers.new(name="Armature", type="ARMATURE")
         mod.object = arm_obj
@@ -1292,7 +1303,6 @@ def _import_model_to_blender(
         ctx.view_layer.objects.active = arm_obj
         arm_obj.animation_data_create()
 
-                                                     
         rest_abs_by_name: Dict[str, Matrix] = {}
         rest_rel_by_name: Dict[str, Matrix] = {}
         for pb in arm_obj.pose.bones:
@@ -1308,7 +1318,6 @@ def _import_model_to_blender(
             else:
                 rest_rel_by_name[name] = rest_abs
 
-                                                                                                    
         _gf_runtime_cache_armature(
             arm_obj,
             model=model,
@@ -1330,7 +1339,6 @@ def _import_model_to_blender(
                 print(f"[GFModel] Skip motion {mot.index}: frames_count=0")
                 continue
             if not mot.bones:
-                                                                              
                 print(
                     f"[GFModel] Skip skeletal action for motion {mot.index}: bones=0 (uv={len(mot.uv_transforms)})"
                 )
@@ -1402,8 +1410,6 @@ def _import_model_to_blender(
                     parent_name = rb.parent
                     if parent_name and parent_name in pose_mats:
                         if _bone_uses_ssc(int(rb.flags)):
-                                                                            
-                                                                                                                                                 
                             prb = rest_by_name.get(parent_name)
                             pbt = bt_by_name.get(parent_name)
                             psx = (
@@ -1445,10 +1451,6 @@ def _import_model_to_blender(
 
                     pose_mats[name] = pose_mat
 
-                                                                                           
-                                                                      
-                                                                      
-                                                          
                     if (
                         rb.parent
                         and rb.parent in pose_mats
@@ -1465,7 +1467,6 @@ def _import_model_to_blender(
                     pb.keyframe_insert(data_path="rotation_quaternion", frame=frame)
                     pb.keyframe_insert(data_path="scale", frame=frame)
 
-                                                                      
                 dbg_enabled = bool(
                     getattr(ctx.scene, "gfmodel_debug_animations", False)
                 )
@@ -1486,13 +1487,11 @@ def _import_model_to_blender(
                             f"sca=({sca.x:.4f},{sca.y:.4f},{sca.z:.4f})"
                         )
 
-                                                                 
         try:
             arm_obj.animation_data.action = None
         except Exception:
             pass
 
-                                              
         try:
             bpy.context.scene.frame_set(0)
         except Exception:
@@ -1510,7 +1509,7 @@ def _import_model_to_blender(
         for mot in motions:
             if not mot.uv_transforms or mot.frames_count <= 0:
                 continue
-                                                                                          
+
             mats_in_motion = {uv.name for uv in mot.uv_transforms}
             for mat_name in mats_in_motion:
                 mat = mats_by_name.get(mat_name)
@@ -1522,7 +1521,7 @@ def _import_model_to_blender(
                     name=f"{model.name}_UV_{mot.index}_{mat.name}"
                 )
                 nt.animation_data.action = action
-                                                                                                      
+
                 mapping_defaults: Dict[
                     str,
                     Tuple[
@@ -1576,24 +1575,21 @@ def _import_model_to_blender(
                             data_path="default_value", frame=frame
                         )
 
-                                                                                                                 
                 mat["gfmodel_has_uv_anims"] = True
                 mat["gfmodel_uv_action"] = action.name
                 nt.animation_data.action = None
-                                           
+
                 for node_name, (loc, rotv, scv) in mapping_defaults.items():
                     node = mat.node_tree.nodes.get(node_name)
                     if node is None:
                         continue
-                    node.inputs["Location"].default_value = loc                            
-                    node.inputs["Rotation"].default_value = rotv                            
-                    node.inputs["Scale"].default_value = scv                            
+                    node.inputs["Location"].default_value = loc
+                    node.inputs["Rotation"].default_value = rotv
+                    node.inputs["Scale"].default_value = scv
 
-                                                                         
         _apply_uv_anim_enable(ctx.scene)
 
     if import_visibility_animations and motions:
-                                                                                   
         for mot in motions:
             if not mot.visibility_tracks or mot.frames_count <= 0:
                 continue
@@ -1645,17 +1641,13 @@ def _import_gfmodel_bytes(
     axis_forward: str = "-Z",
     axis_up: str = "Y",
 ) -> bool:
-                                                                                     
-                                                                                
+
     try:
         context.scene["gfmodel_last_import_source"] = str(source_path)
         context.scene["gfmodel_last_import_breadcrumb"] = str(source_path)
     except Exception:
         pass
 
-                                                                                         
-                                                                                        
-                                
     source_path_real = str(source_path)
     try:
         if not os.path.isfile(source_path_real):
@@ -1679,7 +1671,6 @@ def _import_gfmodel_bytes(
                 with open(source_path_real, "wb") as f:
                     f.write(data)
     except Exception:
-                                                                    
         source_path_real = str(source_path)
 
     models, textures, motions, shaders = _load_any(data)
@@ -1716,12 +1707,12 @@ def _import_gfmodel_loaded(
     axis_forward: str = "-Z",
     axis_up: str = "Y",
 ) -> bool:
-                                                            
+
     try:
         sp = str(source_path)
         if os.path.isfile(sp):
             context.scene["gfmodel_last_import_path"] = sp
-                                                                              
+
             bc = str(context.scene.get("gfmodel_last_import_breadcrumb", "")).strip()
             if not bc:
                 bc = sp
@@ -1736,7 +1727,6 @@ def _import_gfmodel_loaded(
     except Exception:
         pass
 
-                                                                                         
     for idx, mot in enumerate(motions):
         mot.index = idx
 
@@ -1767,7 +1757,7 @@ def _import_gfmodel_loaded(
             axis_forward=str(axis_forward),
             axis_up=str(axis_up),
         )
-                                                                           
+
     _apply_uv_anim_enable(context.scene)
     return True
 
@@ -1778,7 +1768,7 @@ class IMPORT_SCENE_OT_gfmodel(bpy.types.Operator, ImportHelper):
     bl_options = {"UNDO"}
 
     filename_ext = ""
-                                                                                                
+
     filter_glob: StringProperty(default="*", options={"HIDDEN"})
 
     import_textures: BoolProperty(name="Import Textures", default=True)
@@ -1803,7 +1793,7 @@ class IMPORT_SCENE_OT_gfmodel(bpy.types.Operator, ImportHelper):
         default="Waist",
         description="Bone name to print (when Debug Animations is enabled)",
     )
-    debug_motion: bpy.props.IntProperty(                              
+    debug_motion: bpy.props.IntProperty(
         name="Debug Motion Index",
         default=-1,
         description="If >= 0, only print debug for this motion index",
@@ -1813,7 +1803,7 @@ class IMPORT_SCENE_OT_gfmodel(bpy.types.Operator, ImportHelper):
         default=False,
         description="Assign a selected skeletal action to the armature after import",
     )
-    active_action_index: bpy.props.IntProperty(                              
+    active_action_index: bpy.props.IntProperty(
         name="Active Motion Index",
         default=0,
         min=0,
@@ -1833,7 +1823,7 @@ class IMPORT_SCENE_OT_gfmodel(bpy.types.Operator, ImportHelper):
     )
 
     def execute(self, context: bpy.types.Context):
-                                                                                    
+
         prev_dbg = bool(getattr(context.scene, "gfmodel_debug_animations", False))
         prev_dbg_bone = str(getattr(context.scene, "gfmodel_debug_bone", "Waist"))
         prev_dbg_motion = int(getattr(context.scene, "gfmodel_debug_motion", -1))

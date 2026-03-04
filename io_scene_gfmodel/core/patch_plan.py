@@ -1,12 +1,12 @@
-"""Generalized "unwrap/rewrap" patch plans for replacing an embedded GFModel blob.
 
-Motivation:
-- The Blender exporter naturally writes a GFModelPack/CM/CP blob.
-- Archives often wrap those blobs in additional layers (LZ11, Mini, CP/CM nesting, etc).
-- When the importer loads a model from somewhere inside a GARC entry, we record a list of
-  unwrap steps that lead to an exportable blob; later we can patch a rebuilt blob back
-  into the original entry while preserving outer wrappers.
-"""
+
+
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -15,6 +15,11 @@ import struct
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from .binlinker import (
+    looks_like_binlinker,
+    parse_binlinker,
+    rebuild_with_replaced_data as _binlinker_rebuild_with_replaced_data,
+)
 from .lz11 import compress, decompress, looks_like_lz11
 from .mini import parse_mini, patch_mini
 from .pkmn_container import parse_container, patch_container
@@ -42,7 +47,7 @@ def _container_has_pack(data: bytes) -> bool:
 
 
 def _is_exportable_blob(data: bytes) -> bool:
-    """True if Blender exporter v1 can treat this as a source blob."""
+
     if _is_pack(data):
         return True
     try:
@@ -52,7 +57,7 @@ def _is_exportable_blob(data: bytes) -> bool:
     if cont.magic2 == "CM":
         return _container_has_pack(data)
     if cont.magic2 == "CP":
-                                                                                       
+
         try:
             if cont.count < 2:
                 return False
@@ -77,6 +82,8 @@ def steps_to_breadcrumb(steps: Sequence[Step]) -> str:
         elif op == "container":
             magic = str(st.get("magic", "")).strip() or "??"
             parts.append(f"{magic}[{int(st.get('index', -1))}]")
+        elif op == "binlinker":
+            parts.append(f"binlinker[{int(st.get('index', -1))}]")
         else:
             parts.append(op or "??")
     return "/".join(parts)
@@ -106,12 +113,17 @@ def extract_via_steps(data: bytes, steps: Sequence[Step]) -> bytes:
             idx = int(st.get("index", -1))
             cur = cont.extract(cur, idx)
             continue
+        if op == "binlinker":
+            bl = parse_binlinker(cur)
+            idx = int(st.get("index", -1))
+            cur = bl.extract(cur, idx)
+            continue
         raise ValueError(f"unknown patch plan step: {op!r}")
     return bytes(cur)
 
 
 def patch_via_steps(data: bytes, steps: Sequence[Step], replacement: bytes) -> bytes:
-    """Return new bytes after replacing the sub-blob addressed by `steps`."""
+
 
     def _patch(cur: bytes, i: int) -> bytes:
         if i >= len(steps):
@@ -147,6 +159,14 @@ def patch_via_steps(data: bytes, steps: Sequence[Step], replacement: bytes) -> b
             if bytes(child_new) == bytes(child):
                 return bytes(cur)
             return patch_container(cur, index=idx, replacement=child_new)
+        if op == "binlinker":
+            bl = parse_binlinker(cur)
+            idx = int(st.get("index", -1))
+            child = bl.extract(cur, idx)
+            child_new = _patch(child, i + 1)
+            if bytes(child_new) == bytes(child):
+                return bytes(cur)
+            return _binlinker_rebuild_with_replaced_data(cur, index=idx, replacement=child_new)
         raise ValueError(f"unknown patch plan step: {op!r}")
 
     return _patch(bytes(data), 0)
@@ -157,13 +177,13 @@ def find_exportable_blob(
     *,
     max_depth: int = 32,
 ) -> Tuple[bytes, List[Step]]:
-    """Return (exportable_blob, steps_to_reach_it).
 
-    The returned blob is one of:
-    - GFModelPack (raw)
-    - CM container containing a GFModelPack
-    - CP container whose slot 1 is a CM containing a GFModelPack
-    """
+
+
+
+
+
+
 
     def _walk(cur: bytes, depth: int) -> Optional[Tuple[bytes, List[Step]]]:
         if depth > int(max_depth):
@@ -171,7 +191,7 @@ def find_exportable_blob(
         if _is_exportable_blob(cur):
             return bytes(cur), []
 
-                       
+
         if looks_like_lz11(cur):
             try:
                 dec = decompress(cur)
@@ -183,7 +203,7 @@ def find_exportable_blob(
                     blob, st = res
                     return blob, [{"op": "lz11"}] + st
 
-                       
+
         try:
             mini = parse_mini(cur)
         except Exception:
@@ -201,7 +221,7 @@ def find_exportable_blob(
                         {"op": "mini", "index": int(i), "ident": mini.ident}
                     ] + st
 
-                            
+
         try:
             cont = parse_container(cur)
         except Exception:
@@ -220,6 +240,21 @@ def find_exportable_blob(
                         [{"op": "container", "index": int(i), "magic": cont.magic2}]
                         + st,
                     )
+
+        if looks_like_binlinker(cur):
+            try:
+                bl = parse_binlinker(cur)
+                for i in range(int(bl.file_count)):
+                    try:
+                        child = bl.extract(cur, i)
+                    except Exception:
+                        continue
+                    res = _walk(child, depth + 1)
+                    if res is not None:
+                        blob, st = res
+                        return blob, [{"op": "binlinker", "index": int(i)}] + st
+            except Exception:
+                pass
 
         return None
 

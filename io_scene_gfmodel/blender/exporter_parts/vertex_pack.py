@@ -1,4 +1,4 @@
-"""Vertex attribute packing and weight extraction helpers."""
+
 
 from __future__ import annotations
 
@@ -14,21 +14,21 @@ from ...core.types import _GFSubMesh
 def _pack_attr_value(fmt: int, scale: float, v: float) -> bytes:
     inv = 1.0 / float(scale) if float(scale) != 0.0 else 1.0
     x = float(v) * inv
-    if fmt == 0:      
+    if fmt == 0:
         n = float(round(x))
         if abs(x - n) < 1e-6:
             x = n
         xi = int(round(x))
         xi = max(-128, min(127, xi))
         return struct.pack("<b", int(xi))
-    if fmt == 1:      
+    if fmt == 1:
         n = float(round(x))
         if abs(x - n) < 1e-6:
             x = n
         xi = int(round(x))
         xi = max(0, min(255, xi))
         return int(xi).to_bytes(1, "little", signed=False)
-    if fmt == 2:       
+    if fmt == 2:
         n = float(round(x))
         if abs(x - n) < 1e-6:
             x = n
@@ -60,21 +60,21 @@ def _pack_vertex_bytes(
     for attr in sm.attributes:
         align2(int(attr.fmt))
         elems = [0.0, 0.0, 0.0, 1.0]
-        if attr.name == 0:            
+        if attr.name == 0:
             elems = [float(position.x), float(position.y), float(position.z), 1.0]
-        elif attr.name == 1:          
+        elif attr.name == 1:
             elems = [float(normal.x), float(normal.y), float(normal.z), 0.0]
-        elif attr.name == 4:       
+        elif attr.name == 4:
             u, v = uv0
             elems = [float(u), float(v), 0.0, 0.0]
-        elif attr.name == 3:         
+        elif attr.name == 3:
             elems = [1.0, 1.0, 1.0, 1.0]
-        elif attr.name == 7:                               
+        elif attr.name == 7:
             bi = [0, 0, 0, 0]
             for i, (pi, _w) in enumerate(weights[:4]):
                 bi[i] = int(pi)
             elems = [float(bi[0]), float(bi[1]), float(bi[2]), float(bi[3])]
-        elif attr.name == 8:              
+        elif attr.name == 8:
             bw = [0.0, 0.0, 0.0, 0.0]
             for i, (_pi, wgt) in enumerate(weights[:4]):
                 bw[i] = float(wgt)
@@ -135,24 +135,24 @@ def _pack_submesh_vertex_buffer(
         for attr in sm.attributes:
             align2(int(attr.fmt))
             elems = [0.0, 0.0, 0.0, 1.0]
-            if attr.name == 0:            
+            if attr.name == 0:
                 p = positions[vi]
                 elems = [float(p.x), float(p.y), float(p.z), 1.0]
-            elif attr.name == 1:          
+            elif attr.name == 1:
                 n = normals[vi]
                 elems = [float(n.x), float(n.y), float(n.z), 0.0]
-            elif attr.name == 4:       
+            elif attr.name == 4:
                 u, v = uvs[vi]
                 elems = [float(u), float(v), 0.0, 0.0]
-            elif attr.name == 3:         
+            elif attr.name == 3:
                 elems = [1.0, 1.0, 1.0, 1.0]
-            elif attr.name == 7:                               
+            elif attr.name == 7:
                 bi = [0, 0, 0, 0]
                 wl = weights[vi]
                 for i, (pi, _w) in enumerate(wl[:4]):
                     bi[i] = int(pi)
                 elems = [float(bi[0]), float(bi[1]), float(bi[2]), float(bi[3])]
-            elif attr.name == 8:              
+            elif attr.name == 8:
                 bw = [0.0, 0.0, 0.0, 0.0]
                 wl = weights[vi]
                 for i, (_pi, wgt) in enumerate(wl[:4]):
@@ -176,11 +176,11 @@ def _gather_weights_palette_indices(
 
     has_dynamic = any(a.name in (7, 8) for a in sm.attributes)
     if not has_dynamic:
-        return [[] for _ in range(len(obj.data.vertices))]                            
+        return [[] for _ in range(len(obj.data.vertices))]
 
     vg_by_index = {vg.index: vg.name for vg in obj.vertex_groups}
     weights: List[List[Tuple[int, float]]] = []
-    mesh: bpy.types.Mesh = obj.data                            
+    mesh: bpy.types.Mesh = obj.data
     for v in mesh.vertices:
         wl: List[Tuple[int, float]] = []
         for g in v.groups:
@@ -213,7 +213,7 @@ def _gather_weights_palette_indices_checked(
     has_dynamic = any(a.name in (7, 8) for a in sm.attributes)
     if not has_dynamic:
         return (
-            [[] for _ in range(len(obj.data.vertices))],                            
+            [[] for _ in range(len(obj.data.vertices))],
             [],
             [],
         )
@@ -223,7 +223,7 @@ def _gather_weights_palette_indices_checked(
     not_in_palette = set()
 
     weights: List[List[Tuple[int, float]]] = []
-    mesh: bpy.types.Mesh = obj.data                            
+    mesh: bpy.types.Mesh = obj.data
     for v in mesh.vertices:
         wl: List[Tuple[int, float]] = []
         for g in v.groups:
@@ -259,7 +259,7 @@ def _gather_weights_skeleton_indices_checked(
 
     unknown = set()
     weights: List[List[Tuple[int, float]]] = []
-    mesh: bpy.types.Mesh = obj.data                            
+    mesh: bpy.types.Mesh = obj.data
     for v in mesh.vertices:
         wl: List[Tuple[int, float]] = []
         for g in v.groups:

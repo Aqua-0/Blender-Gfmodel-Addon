@@ -1,18 +1,18 @@
-"""Mathutils compatibility for running core code outside Blender.
 
-Blender's Python ships `mathutils`, but plain CPython typically does not.
-Core parsers/writers mostly need a lightweight vector container, so provide
-an extremely small fallback implementation.
-"""
+
+
+
+
+
 
 from __future__ import annotations
 
 from typing import Iterable, Iterator, Sequence, Tuple, Union, overload
 
 try:
-                                                
-    from mathutils import Vector as Vector                
-except Exception:                    
+
+    from mathutils import Vector as Vector
+except Exception:
     Number = Union[int, float]
 
     class Vector(tuple):
@@ -26,7 +26,7 @@ except Exception:
             return tuple.__new__(cls, tuple(float(x) for x in seq))
 
         def __iter__(self) -> Iterator[float]:
-            return tuple.__iter__(self)                              
+            return tuple.__iter__(self)
 
         @property
         def x(self) -> float:

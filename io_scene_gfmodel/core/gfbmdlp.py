@@ -1,12 +1,12 @@
-"""Parser for BinaryModelPacker's packed output (.gfbmdlp).
 
-This is *not* the same as the in-game GFModelPack (0x00010000) used by many extracted
-0.bin files. BinaryModelPacker produces a file that begins with 0x00010000 but then
-stores a flat list of whole compiled files (.gfbmdl/.btex/.gfbvsh/.gfbfsh/.gfbgsh/.gfbmot)
-with a filename+offset table and 0x80-aligned file payloads.
 
-Reference: ModelPacker/Packer/BinaryModelPacker/Program.cs (PackModel/PackFiles).
-"""
+
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -21,12 +21,12 @@ class GfbmdlpEntry:
     name: str
     data_off: int
     data_end: int
-                                                                             
+
     trimmed_end: Optional[int] = None
 
 
 def _read_7bit_u32(data: bytes, off: int) -> Tuple[int, int]:
-    """Read C# BinaryWriter/BinaryReader 7-bit encoded int."""
+
     value = 0
     shift = 0
     for _ in range(5):
@@ -46,24 +46,24 @@ def _align_up(x: int, a: int) -> int:
 
 
 def _try_guess_trimmed_end(blob: bytes) -> Optional[int]:
-    """Best-effort file length detection for common toolchain-wrapped binaries."""
+
     if len(blob) < 8:
         return None
     u0 = struct.unpack_from("<I", blob, 0)[0]
 
-                                                                                 
+
     if u0 == 0x15052616 and len(blob) >= 0x20:
         section_count = struct.unpack_from("<I", blob, 4)[0]
         cur = 0x10
         for _ in range(int(section_count)):
             if cur + 16 > len(blob):
                 return None
-                              
+
             sect_len = struct.unpack_from("<I", blob, cur + 8)[0]
             cur = _align_up(cur + 16 + int(sect_len), 0x10)
         return int(cur)
 
-                                                                             
+
     if u0 == 0x14110400 and len(blob) >= 0x18:
         section_count = struct.unpack_from("<I", blob, 4)[0]
         if int(section_count) <= 0:
@@ -73,7 +73,7 @@ def _try_guess_trimmed_end(blob: bytes) -> Optional[int]:
         sect_len = struct.unpack_from("<I", blob, 0x08 + 8)[0]
         return int(0x08 + 16 + int(sect_len))
 
-                                                              
+
     if u0 == 0x00050000 and len(blob) >= 0x0C:
         section_count = struct.unpack_from("<I", blob, 4)[0]
         table_off = 0x08
@@ -90,23 +90,23 @@ def _try_guess_trimmed_end(blob: bytes) -> Optional[int]:
 
 
 def parse_gfbmdlp(data: bytes) -> List[GfbmdlpEntry]:
-    """Parse a BinaryModelPacker .gfbmdlp blob and return entries.
 
-    The file begins with:
-      u32 magic/version (0x00010000)
-      u32 model_count
-      u32 texture_count
-      u32 vsh_count
-      u32 gsh_count
-      u32 fsh_count
 
-    Then a table of u32 offsets (count = sum of all files packed) pointing to each
-    filename+dataOffset record:
-      string name (C# BinaryWriter 7-bit length + UTF-8 bytes)
-      u32 data_off (absolute, 0x80-aligned)
 
-    File payloads are stored at data_off, also 0x80-aligned, with zero padding between.
-    """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if len(data) < 0x18:
         raise ValueError("too small for gfbmdlp header")
     magic = struct.unpack_from("<I", data, 0)[0]
@@ -147,12 +147,12 @@ def parse_gfbmdlp(data: bytes) -> List[GfbmdlpEntry]:
         data_off = struct.unpack_from("<I", data, p2)[0]
         entries_tmp.append((int(i), str(name), int(data_off)))
 
-                                            
+
     sorted_by_off = sorted(entries_tmp, key=lambda t: int(t[2]))
     data_ends: dict[int, int] = {}
     for (i, _n, off), nxt in zip(
         sorted_by_off, sorted_by_off[1:] + [(None, "", len(data))]
-    ):                           
+    ):
         end = int(nxt[2]) if nxt[0] is not None else int(nxt[2])
         data_ends[int(i)] = int(end)
 

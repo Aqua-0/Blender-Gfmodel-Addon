@@ -1,4 +1,4 @@
-"""Blender UI: browse GARC archives and import a single entry as GFModel."""
+
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from bpy.props import (
     StringProperty,
 )
 
-from ..core.garc import parse_garc_file, rewrite_garc_file
+from ..core.garc import parse_garc_file, rewrite_garc_file, rewrite_garc_file_inplace_atomic
 from ..core.io import _load_any
 from ..core.lz11 import compress, decompress, looks_like_lz11
 from ..core.mini import parse_mini, patch_mini
@@ -30,36 +30,36 @@ _GARC_FILE_CACHE: dict[str, object] = {}
 
 
 class GFModelArchiveEntry(bpy.types.PropertyGroup):
-    index: bpy.props.IntProperty()                            
-    flags_hex: bpy.props.StringProperty()                            
-    start_hex: bpy.props.StringProperty()                            
-    length_hex: bpy.props.StringProperty()                            
-    magic4: bpy.props.StringProperty()                            
-    kind: bpy.props.StringProperty()                            
-    lz_tag: bpy.props.StringProperty()                            
-    size_kb: bpy.props.StringProperty()                            
-    mini_info: bpy.props.StringProperty()                            
+    index: bpy.props.IntProperty()
+    flags_hex: bpy.props.StringProperty()
+    start_hex: bpy.props.StringProperty()
+    length_hex: bpy.props.StringProperty()
+    magic4: bpy.props.StringProperty()
+    kind: bpy.props.StringProperty()
+    lz_tag: bpy.props.StringProperty()
+    size_kb: bpy.props.StringProperty()
+    mini_info: bpy.props.StringProperty()
 
 
 class GFModelMiniEntry(bpy.types.PropertyGroup):
-    index: bpy.props.IntProperty()                            
-    start_hex: bpy.props.StringProperty()                            
-    length_hex: bpy.props.StringProperty()                            
-    magic4: bpy.props.StringProperty()                            
-    mini_info: bpy.props.StringProperty()                            
-    kind: bpy.props.StringProperty()                            
-    lz_tag: bpy.props.StringProperty()                            
-    size_kb: bpy.props.StringProperty()                            
-    category: bpy.props.StringProperty()                            
+    index: bpy.props.IntProperty()
+    start_hex: bpy.props.StringProperty()
+    length_hex: bpy.props.StringProperty()
+    magic4: bpy.props.StringProperty()
+    mini_info: bpy.props.StringProperty()
+    kind: bpy.props.StringProperty()
+    lz_tag: bpy.props.StringProperty()
+    size_kb: bpy.props.StringProperty()
+    category: bpy.props.StringProperty()
 
 
 class GFModelContainerEntry(bpy.types.PropertyGroup):
-    index: bpy.props.IntProperty()                            
-    kind: bpy.props.StringProperty()                            
-    size_kb: bpy.props.StringProperty()                            
-    length_hex: bpy.props.StringProperty()                            
-    magic4: bpy.props.StringProperty()                            
-    mini_info: bpy.props.StringProperty()                            
+    index: bpy.props.IntProperty()
+    kind: bpy.props.StringProperty()
+    size_kb: bpy.props.StringProperty()
+    length_hex: bpy.props.StringProperty()
+    magic4: bpy.props.StringProperty()
+    mini_info: bpy.props.StringProperty()
 
 
 class GFModel_UL_archive_entries(bpy.types.UIList):
@@ -74,7 +74,7 @@ class GFModel_UL_archive_entries(bpy.types.UIList):
         active_propname: str,
         index: int,
     ) -> None:
-        e: GFModelArchiveEntry = item                            
+        e: GFModelArchiveEntry = item
         row = layout.row(align=True)
         row.label(text=f"{int(e.index):04d}")
         row.label(text=str(getattr(e, "kind", "")))
@@ -115,7 +115,7 @@ class GFModel_UL_mini_entries(bpy.types.UIList):
         active_propname: str,
         index: int,
     ) -> None:
-        e: GFModelMiniEntry = item                            
+        e: GFModelMiniEntry = item
         row = layout.row(align=True)
         row.label(text=f"{int(e.index):04d}")
         row.label(text=str(getattr(e, "kind", "")))
@@ -158,7 +158,7 @@ class GFModel_UL_container_entries(bpy.types.UIList):
         active_propname: str,
         index: int,
     ) -> None:
-        e: GFModelContainerEntry = item                            
+        e: GFModelContainerEntry = item
         row = layout.row(align=True)
         row.label(text=f"{int(e.index):04d}")
         row.label(text=str(getattr(e, "kind", "")))
@@ -243,7 +243,7 @@ def _resolve_out_path(
     if not p:
         return str(archive_path) + str(suffix)
 
-                                                       
+
     try:
         if p.endswith(("/", "\\")) or os.path.isdir(p):
             base = os.path.basename(str(archive_path).rstrip("\\/"))
@@ -279,6 +279,14 @@ def _classify_import_type(data: bytes) -> str:
             return "MODEL"
         if m == 0x15041213:
             return "TEXTURE"
+
+    try:
+        from ..core.binlinker import looks_like_binlinker
+
+        if looks_like_binlinker(data):
+            return "BINLINKER"
+    except Exception:
+        pass
     try:
         parse_mini(data)
         return "MINI"
@@ -299,7 +307,7 @@ def _breadcrumb(context: bpy.types.Context) -> str:
             entry_i = int(getattr(context.scene, "gfmodel_archive_selected", 0))
         parts.append(f"GARC[{int(entry_i)}]")
 
-                                                                           
+
     mini_i = int(getattr(context.scene, "gfmodel_mini_selected", 0))
     mini_ident = str(context.scene.get("gfmodel_archive_mini_ident", "")).strip()
     if mini_ident:
@@ -361,8 +369,8 @@ class GFModel_OT_archive_scan(bpy.types.Operator):
                 lz_tag = ""
                 if head4[:1] == b"\x11":
                     kind = "LZ11"
-                                                                                                           
-                                                                                                         
+
+
                     if len(head8) >= 7:
                         lz_tag = _guess_ident2(head8[5:7])
                 else:
@@ -440,16 +448,23 @@ class GFModel_OT_archive_import_entry(bpy.types.Operator):
             )
             source_path = str(plan.breadcrumb) or source_path
         except Exception:
-                                                           
+
             payload = bytes(entry_bytes)
 
-        ok = _import_gfmodel_bytes(
-            context,
-            payload,
-            source_path=str(source_path),
-            import_textures=True,
-            import_animations=True,
-        )
+        _pending_key = "gfmodel_pending_patch_plan_json"
+        if plan is not None:
+            context.scene[_pending_key] = plan.to_json()
+        try:
+            ok = _import_gfmodel_bytes(
+                context,
+                payload,
+                source_path=str(source_path),
+                import_textures=True,
+                import_animations=True,
+            )
+        finally:
+            if _pending_key in context.scene:
+                del context.scene[_pending_key]
         if not ok:
             self.report({"ERROR"}, "No GFModel content found in selected entry")
             return {"CANCELLED"}
@@ -504,7 +519,7 @@ class GFModel_OT_archive_patch_entry_from_file(bpy.types.Operator):
         inplace = bool(getattr(context.scene, "gfmodel_archive_patch_inplace", False))
         make_backup = bool(getattr(context.scene, "gfmodel_archive_patch_backup", True))
 
-                                                                                                              
+
         if not inplace:
             try:
                 if os.path.abspath(out_path) == os.path.abspath(archive_path):
@@ -516,7 +531,7 @@ class GFModel_OT_archive_patch_entry_from_file(bpy.types.Operator):
             except Exception:
                 pass
 
-                                                                                             
+
         try:
             if os.path.exists(out_path) and os.path.isdir(out_path):
                 self.report({"ERROR"}, f"Out path is a directory: {out_path}")
@@ -536,15 +551,10 @@ class GFModel_OT_archive_patch_entry_from_file(bpy.types.Operator):
                 if not make_backup:
                     self.report({"ERROR"}, "In-place patch requires Backup enabled")
                     return {"CANCELLED"}
-                bak_path = archive_path + ".bak"
-                if os.path.exists(bak_path):
-                    self.report({"ERROR"}, f"Backup already exists: {bak_path}")
-                    return {"CANCELLED"}
-                os.replace(archive_path, bak_path)
-                rewrite_garc_file(
-                    bak_path,
+                rewrite_garc_file_inplace_atomic(
                     archive_path,
                     replacements={(int(entry_i), int(bit)): payload},
+                    make_backup=True,
                 )
                 out_path = archive_path
             else:
@@ -738,15 +748,10 @@ class GFModel_OT_archive_patch_mini_from_file(bpy.types.Operator):
                 if not make_backup:
                     self.report({"ERROR"}, "In-place patch requires Backup enabled")
                     return {"CANCELLED"}
-                bak_path = archive_path + ".bak"
-                if os.path.exists(bak_path):
-                    self.report({"ERROR"}, f"Backup already exists: {bak_path}")
-                    return {"CANCELLED"}
-                os.replace(archive_path, bak_path)
-                rewrite_garc_file(
-                    bak_path,
+                rewrite_garc_file_inplace_atomic(
                     archive_path,
                     replacements={(int(entry_i), 0): entry_new},
+                    make_backup=True,
                 )
                 out_path = archive_path
             else:
@@ -988,13 +993,10 @@ class GFModel_OT_archive_patch_container_from_file(bpy.types.Operator):
                 if not make_backup:
                     self.report({"ERROR"}, "In-place patch requires Backup enabled")
                     return {"CANCELLED"}
-                bak_path = archive_path + ".bak"
-                if os.path.exists(bak_path):
-                    self.report({"ERROR"}, f"Backup already exists: {bak_path}")
-                    return {"CANCELLED"}
-                os.replace(archive_path, bak_path)
-                rewrite_garc_file(
-                    bak_path, archive_path, replacements={(int(entry_i), 0): entry_new}
+                rewrite_garc_file_inplace_atomic(
+                    archive_path,
+                    replacements={(int(entry_i), 0): entry_new},
+                    make_backup=True,
                 )
                 out_path = archive_path
             else:
@@ -1234,7 +1236,7 @@ class GFModel_OT_archive_patch_container2_from_file(bpy.types.Operator):
                 self.report({"ERROR"}, f"Failed to recompress nested entry LZ11: {e}")
                 return {"CANCELLED"}
 
-                                                         
+
         cont_new = patch_container(
             mini_seg_dec, index=int(cont_i), replacement=outer_new_raw
         )
@@ -1282,13 +1284,10 @@ class GFModel_OT_archive_patch_container2_from_file(bpy.types.Operator):
                 if not make_backup:
                     self.report({"ERROR"}, "In-place patch requires Backup enabled")
                     return {"CANCELLED"}
-                bak_path = archive_path + ".bak"
-                if os.path.exists(bak_path):
-                    self.report({"ERROR"}, f"Backup already exists: {bak_path}")
-                    return {"CANCELLED"}
-                os.replace(archive_path, bak_path)
-                rewrite_garc_file(
-                    bak_path, archive_path, replacements={(int(entry_i), 0): entry_new}
+                rewrite_garc_file_inplace_atomic(
+                    archive_path,
+                    replacements={(int(entry_i), 0): entry_new},
+                    make_backup=True,
                 )
                 out_path = archive_path
             else:
@@ -1535,7 +1534,7 @@ class GFModel_OT_archive_import_mini(bpy.types.Operator):
             if looks_like_lz11(cur):
                 pre.append({"op": "lz11"})
                 cur = decompress(cur)
-                                    
+
             m = parse_mini(cur)
             pre.append({"op": "mini", "index": int(mini_i), "ident": str(m.ident)})
             cur = m.extract(cur, int(mini_i))
@@ -1552,13 +1551,20 @@ class GFModel_OT_archive_import_mini(bpy.types.Operator):
         except Exception:
             payload = bytes(sub_bytes)
 
-        ok = _import_gfmodel_bytes(
-            context,
-            payload,
-            source_path=str(source_path),
-            import_textures=True,
-            import_animations=True,
-        )
+        _pending_key = "gfmodel_pending_patch_plan_json"
+        if plan is not None:
+            context.scene[_pending_key] = plan.to_json()
+        try:
+            ok = _import_gfmodel_bytes(
+                context,
+                payload,
+                source_path=str(source_path),
+                import_textures=True,
+                import_animations=True,
+            )
+        finally:
+            if _pending_key in context.scene:
+                del context.scene[_pending_key]
         if not ok:
             self.report({"ERROR"}, "No GFModel content found in selected mini file")
             return {"CANCELLED"}
@@ -1573,7 +1579,7 @@ def _get_selected_mini_file_bytes(
     *,
     want_decompressed: bool,
 ) -> Tuple[str, int, int, bytes]:
-    """Return (archive_path, garc_entry_index, mini_index, mini_file_bytes)."""
+
     path = str(getattr(context.scene, "gfmodel_archive_path", "")).strip()
     if not path:
         raise ValueError("Set an archive path first")
@@ -1714,13 +1720,20 @@ class GFModel_OT_archive_import_container_entry(bpy.types.Operator):
         except Exception:
             payload = bytes(b)
 
-        ok = _import_gfmodel_bytes(
-            context,
-            payload,
-            source_path=str(source_path),
-            import_textures=True,
-            import_animations=True,
-        )
+        _pending_key = "gfmodel_pending_patch_plan_json"
+        if plan is not None:
+            context.scene[_pending_key] = plan.to_json()
+        try:
+            ok = _import_gfmodel_bytes(
+                context,
+                payload,
+                source_path=str(source_path),
+                import_textures=True,
+                import_animations=True,
+            )
+        finally:
+            if _pending_key in context.scene:
+                del context.scene[_pending_key]
         if not ok:
             self.report(
                 {"ERROR"}, "No GFModel content found in selected container entry"
@@ -1879,13 +1892,20 @@ class GFModel_OT_archive_import_container2_entry(bpy.types.Operator):
         except Exception:
             payload = bytes(b)
 
-        ok = _import_gfmodel_bytes(
-            context,
-            payload,
-            source_path=str(source_path),
-            import_textures=True,
-            import_animations=True,
-        )
+        _pending_key = "gfmodel_pending_patch_plan_json"
+        if plan is not None:
+            context.scene[_pending_key] = plan.to_json()
+        try:
+            ok = _import_gfmodel_bytes(
+                context,
+                payload,
+                source_path=str(source_path),
+                import_textures=True,
+                import_animations=True,
+            )
+        finally:
+            if _pending_key in context.scene:
+                del context.scene[_pending_key]
         if not ok:
             self.report({"ERROR"}, "No GFModel content found in selected nested entry")
             return {"CANCELLED"}
@@ -2202,85 +2222,85 @@ def register() -> None:
     for c in classes:
         bpy.utils.register_class(c)
 
-    bpy.types.Scene.gfmodel_archive_path = StringProperty(                              
+    bpy.types.Scene.gfmodel_archive_path = StringProperty(
         name="GARC/CRAG Archive Path",
         default="",
         subtype="FILE_PATH",
     )
-    bpy.types.Scene.gfmodel_archive_patch_payload_path = StringProperty(                              
+    bpy.types.Scene.gfmodel_archive_patch_payload_path = StringProperty(
         name="Payload Path",
         default="",
         subtype="FILE_PATH",
         description="Raw bytes to inject into the selected archive entry (bit 0 by default)",
     )
-    bpy.types.Scene.gfmodel_mini_patch_payload_path = StringProperty(                              
+    bpy.types.Scene.gfmodel_mini_patch_payload_path = StringProperty(
         name="Mini Payload Path",
         default="",
         subtype="FILE_PATH",
         description="Raw bytes to inject into the selected Mini subfile",
     )
-    bpy.types.Scene.gfmodel_container_patch_payload_path = StringProperty(                              
+    bpy.types.Scene.gfmodel_container_patch_payload_path = StringProperty(
         name="Container Payload Path",
         default="",
         subtype="FILE_PATH",
         description="Raw bytes to inject into the selected CP/CM container entry",
     )
-    bpy.types.Scene.gfmodel_container2_patch_payload_path = StringProperty(                              
+    bpy.types.Scene.gfmodel_container2_patch_payload_path = StringProperty(
         name="Nested Payload Path",
         default="",
         subtype="FILE_PATH",
         description="Raw bytes to inject into the selected nested CP/CM container entry",
     )
-    bpy.types.Scene.gfmodel_archive_patch_output_path = StringProperty(                              
+    bpy.types.Scene.gfmodel_archive_patch_output_path = StringProperty(
         name="Output Archive Path",
         default="",
         subtype="FILE_PATH",
         description="Where to write the patched archive (empty => '<archive>.patched')",
     )
-    bpy.types.Scene.gfmodel_archive_patch_bit = IntProperty(                              
+    bpy.types.Scene.gfmodel_archive_patch_bit = IntProperty(
         name="Bit",
         default=0,
         min=0,
         max=31,
         description="Subentry bit to patch (0 is the primary payload in most GARCs)",
     )
-    bpy.types.Scene.gfmodel_archive_patch_inplace = BoolProperty(                              
+    bpy.types.Scene.gfmodel_archive_patch_inplace = BoolProperty(
         name="In-Place",
         default=False,
         description="Replace the archive file directly (requires Backup)",
     )
-    bpy.types.Scene.gfmodel_archive_patch_backup = BoolProperty(                              
+    bpy.types.Scene.gfmodel_archive_patch_backup = BoolProperty(
         name="Backup",
         default=True,
         description="When patching in-place, rename the original to '<archive>.bak' first",
     )
-    bpy.types.Scene.gfmodel_archive_entries = CollectionProperty(                              
+    bpy.types.Scene.gfmodel_archive_entries = CollectionProperty(
         type=GFModelArchiveEntry
     )
-    bpy.types.Scene.gfmodel_archive_selected = IntProperty(                              
+    bpy.types.Scene.gfmodel_archive_selected = IntProperty(
         name="Selected Entry",
         default=0,
         min=0,
     )
-    bpy.types.Scene.gfmodel_archive_search = StringProperty(                              
+    bpy.types.Scene.gfmodel_archive_search = StringProperty(
         name="Find Entry",
         default="",
         description="Filter the archive list by entry index (decimal or 0x... hex)",
     )
-    bpy.types.Scene.gfmodel_mini_entries = CollectionProperty(                              
+    bpy.types.Scene.gfmodel_mini_entries = CollectionProperty(
         type=GFModelMiniEntry
     )
-    bpy.types.Scene.gfmodel_mini_selected = IntProperty(                              
+    bpy.types.Scene.gfmodel_mini_selected = IntProperty(
         name="Selected Mini File",
         default=0,
         min=0,
     )
-    bpy.types.Scene.gfmodel_mini_search = StringProperty(                              
+    bpy.types.Scene.gfmodel_mini_search = StringProperty(
         name="Find Mini",
         default="",
         description="Filter the mini list by subfile index (decimal or 0x... hex)",
     )
-    bpy.types.Scene.gfmodel_mini_filter = EnumProperty(                              
+    bpy.types.Scene.gfmodel_mini_filter = EnumProperty(
         name="Mini Folder",
         items=[
             ("ALL", "All", ""),
@@ -2294,28 +2314,28 @@ def register() -> None:
         ],
         default="ALL",
     )
-    bpy.types.Scene.gfmodel_container_entries = CollectionProperty(                              
+    bpy.types.Scene.gfmodel_container_entries = CollectionProperty(
         type=GFModelContainerEntry
     )
-    bpy.types.Scene.gfmodel_container_selected = IntProperty(                              
+    bpy.types.Scene.gfmodel_container_selected = IntProperty(
         name="Selected Container Entry",
         default=0,
         min=0,
     )
-    bpy.types.Scene.gfmodel_container_search = StringProperty(                              
+    bpy.types.Scene.gfmodel_container_search = StringProperty(
         name="Find Container",
         default="",
         description="Filter the container list by entry index (decimal or 0x... hex)",
     )
-    bpy.types.Scene.gfmodel_container2_entries = CollectionProperty(                              
+    bpy.types.Scene.gfmodel_container2_entries = CollectionProperty(
         type=GFModelContainerEntry
     )
-    bpy.types.Scene.gfmodel_container2_selected = IntProperty(                              
+    bpy.types.Scene.gfmodel_container2_selected = IntProperty(
         name="Selected Nested Container Entry",
         default=0,
         min=0,
     )
-    bpy.types.Scene.gfmodel_container2_search = StringProperty(                              
+    bpy.types.Scene.gfmodel_container2_search = StringProperty(
         name="Find Nested",
         default="",
         description="Filter the nested container list by entry index (decimal or 0x... hex)",

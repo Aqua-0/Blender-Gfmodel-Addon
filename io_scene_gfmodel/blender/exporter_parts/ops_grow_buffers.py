@@ -1,4 +1,4 @@
-"""Grow Buffers and experimental rebuild operators."""
+
 
 from __future__ import annotations
 
@@ -11,6 +11,15 @@ from bpy.props import (
     FloatProperty,
     IntProperty,
     StringProperty,
+)
+
+
+from ...core.io import _load_any
+from .archive_patch_apply import patch_into_source_archive
+from .pack_wrappers import rewrap_pack, unwrap_pack
+from .textures_patch import (
+    _collect_texture_overrides_by_slot,
+    _patch_pack_textures_rgba8,
 )
 
 
@@ -168,7 +177,7 @@ class GFModel_OT_patch_current_scene_grow_buffers_tris(bpy.types.Operator):
         description="What to do when a triangle uses bones that don't co-occur in any existing submesh palette (CLAMP_ROUTE only)",
     )
 
-    def invoke(self, context: bpy.types.Context, event):                          
+    def invoke(self, context: bpy.types.Context, event):
         try:
             self.export_textures = bool(
                 context.scene.get("gfmodel_last_export_export_textures", False)
@@ -186,7 +195,7 @@ class GFModel_OT_patch_current_scene_grow_buffers_tris(bpy.types.Operator):
             )
         except Exception:
             pass
-                                                                                
+
         try:
             ao = context.active_object
             model_name = ""
@@ -233,7 +242,7 @@ class GFModel_OT_patch_current_scene_grow_buffers_tris(bpy.types.Operator):
                     if on:
                         it.source_object = bpy.data.objects.get(str(on))
         except Exception:
-                                                                                      
+
             pass
         try:
             self.routing_strategy = str(
@@ -278,7 +287,7 @@ class GFModel_OT_patch_current_scene_grow_buffers_tris(bpy.types.Operator):
             pass
         return context.window_manager.invoke_props_dialog(self, width=420)
 
-    def draw(self, context: bpy.types.Context):                          
+    def draw(self, context: bpy.types.Context):
         layout = self.layout
         layout.prop(self, "export_textures")
         col = layout.column()
@@ -355,7 +364,7 @@ class GFModel_OT_patch_current_scene_grow_buffers_tris(bpy.types.Operator):
                 )
             except Exception:
                 pass
-                                                        
+
         try:
             context.scene["gfmodel_grow_buffers_routing_strategy"] = str(
                 self.routing_strategy
@@ -403,6 +412,257 @@ class GFModel_OT_patch_current_scene_grow_buffers_tris(bpy.types.Operator):
             return {"CANCELLED"}
         self.report({"INFO"}, "Patched current scene (grow buffers, triangles)")
         return {"FINISHED"}
+
+
+class GFModel_OT_patch_current_scene_grow_buffers_robust(bpy.types.Operator):
+    bl_idname = "gfmodel.patch_current_scene_grow_buffers_robust"
+    bl_label = "GFModel: Patch Current Scene (Robust, PGE-like)"
+    bl_options = {"UNDO"}
+
+    def execute(self, context: bpy.types.Context):
+        import os
+        import tempfile
+        import time
+
+        tmp_root = ""
+        try:
+            tmp_root = str(getattr(bpy.app, "tempdir", "") or "").strip()
+        except Exception:
+            tmp_root = ""
+        if not tmp_root:
+            tmp_root = tempfile.gettempdir()
+        os.makedirs(tmp_root, exist_ok=True)
+        tmp_path = os.path.join(
+            tmp_root, f"gfmodel_export_{int(time.time() * 1000)}.bin"
+        )
+
+
+
+        kwargs = {
+            "filepath": tmp_path,
+            "patch_into_source_archive": True,
+            "remember_last_export_settings": False,
+            "export_meshes": True,
+            "mesh_export_mode": "GROW_BUFFERS_TRIS",
+            "grow_buffers_uv_strategy": "DUPLICATE",
+            "grow_buffers_rebuild_mode": "REBUILD_SPLIT",
+            "grow_buffers_patch_all_tagged_submeshes": True,
+
+            "grow_buffers_material_sources_json": "",
+        }
+
+        try:
+            res = bpy.ops.export_scene.gfmodel("EXEC_DEFAULT", **kwargs)
+        finally:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+
+        if "FINISHED" not in set(res):
+            self.report({"ERROR"}, "Patch failed (export operator did not finish)")
+            return {"CANCELLED"}
+        self.report({"INFO"}, "Patched current scene (robust, PGE-like)")
+        return {"FINISHED"}
+
+
+
+class GFModel_OT_patch_current_scene_grow_buffers_robust_autoroute(bpy.types.Operator):
+    bl_idname = "gfmodel.patch_current_scene_grow_buffers_robust_autoroute"
+    bl_label = "GFModel: Patch Current Scene (Robust + Auto-Route New Meshes)"
+    bl_options = {"UNDO"}
+
+    def execute(self, context: bpy.types.Context):
+        import os
+        import tempfile
+        import time
+
+        tmp_root = ""
+        try:
+            tmp_root = str(getattr(bpy.app, "tempdir", "") or "").strip()
+        except Exception:
+            tmp_root = ""
+        if not tmp_root:
+            tmp_root = tempfile.gettempdir()
+        os.makedirs(tmp_root, exist_ok=True)
+        tmp_path = os.path.join(
+            tmp_root, f"gfmodel_export_{int(time.time() * 1000)}.bin"
+        )
+
+
+
+        kwargs = {
+            "filepath": tmp_path,
+            "patch_into_source_archive": True,
+            "remember_last_export_settings": False,
+            "export_meshes": True,
+            "mesh_export_mode": "GROW_BUFFERS_TRIS",
+            "grow_buffers_uv_strategy": "DUPLICATE",
+            "grow_buffers_rebuild_mode": "CLAMP_ROUTE",
+            "grow_buffers_patch_all_tagged_submeshes": True,
+            "grow_buffers_auto_route_new_meshes": True,
+
+            "grow_buffers_material_sources_json": "",
+        }
+
+        try:
+            res = bpy.ops.export_scene.gfmodel("EXEC_DEFAULT", **kwargs)
+        finally:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+
+        if "FINISHED" not in set(res):
+            self.report({"ERROR"}, "Patch failed (export operator did not finish)")
+            return {"CANCELLED"}
+        self.report({"INFO"}, "Patched current scene (robust + auto-route new meshes)")
+        return {"FINISHED"}
+
+
+
+class GFModel_OT_patch_current_scene_export_textures(bpy.types.Operator):
+    bl_idname = "gfmodel.patch_current_scene_export_textures"
+    bl_label = "GFModel: Patch Current Scene (Textures Only)"
+    bl_options = {"UNDO"}
+
+    texture_mode: EnumProperty(
+        name="Texture Mode",
+        items=[
+            ("KEEP", "Keep Original", "Do not overwrite texture data"),
+            (
+                "ORIGINAL_FORMAT",
+                "Original Format",
+                "Encode to the original texture format+size from the file (errors if encoder not implemented for that fmt)",
+            ),
+            ("RGBA8", "RGBA8", "Write RGBA8 swizzled (no ETC encoding)"),
+            (
+                "RGBA8_SAME_SIZE",
+                "RGBA8 (Same Size)",
+                "Write RGBA8 swizzled; requires image size match original texture",
+            ),
+            (
+                "RGBA8_ORIGINAL_SIZE",
+                "RGBA8 (Auto-Resize to Original)",
+                "Write RGBA8 swizzled; auto-resizes images to the original texture size",
+            ),
+            (
+                "OVERRIDE_FORMAT",
+                "Override Format (Original Size)",
+                "Encode to a selected format using the original file's texture size",
+            ),
+        ],
+        default="RGBA8_ORIGINAL_SIZE",
+    )
+    texture_override_format: EnumProperty(
+        name="Texture Override Format",
+        items=[
+            ("RGBA8", "RGBA8", "PICA RGBA8 (GF fmt=0x4)"),
+            ("RGB8", "RGB8", "PICA RGB8 (GF fmt=0x3)"),
+            ("RGB565", "RGB565", "PICA RGB565 (GF fmt=0x2)"),
+            ("RGBA4", "RGBA4", "PICA RGBA4 (GF fmt=0x16)"),
+            ("RGBA5551", "RGBA5551", "PICA RGBA5551 (GF fmt=0x17)"),
+            ("LA8", "LA8", "PICA LA8 (GF fmt=0x23)"),
+            ("L8", "L8", "PICA L8 (GF fmt=0x25)"),
+            ("A8", "A8", "PICA A8 (GF fmt=0x26)"),
+            ("LA4", "LA4", "PICA LA4 (GF fmt=0x27)"),
+            ("L4", "L4", "PICA L4 (GF fmt=0x28)"),
+            ("A4", "A4", "PICA A4 (GF fmt=0x29)"),
+            ("ETC1", "ETC1", "PICA ETC1 (GF fmt=0x2A)"),
+            ("ETC1A4", "ETC1A4", "PICA ETC1A4 (GF fmt=0x2B)"),
+        ],
+        default="RGBA8",
+    )
+    texture_max_size: IntProperty(
+        name="Texture Max Size",
+        default=256,
+        min=8,
+        description="Only used in Texture Mode=RGBA8 (downscales to fit; rounded to multiple of 8)",
+    )
+
+    def execute(self, context: bpy.types.Context):
+        src_path = ""
+        try:
+            obj = getattr(context, "active_object", None)
+            if obj is not None:
+                src_path = str(obj.get("gfmodel_source_path", "") or "").strip()
+        except Exception:
+            src_path = ""
+        if not src_path:
+            try:
+                name = ""
+                obj = getattr(context, "active_object", None)
+                if obj is not None:
+                    name = str(obj.get("gfmodel_import_collection", "") or "").strip()
+                coll = bpy.data.collections.get(name) if name else None
+                if coll is None:
+                    name = str(context.scene.get("gfmodel_last_import_collection", "") or "").strip()
+                    coll = bpy.data.collections.get(name) if name else None
+                if coll is not None:
+                    src_path = str(coll.get("gfmodel_last_import_path", "") or "").strip()
+            except Exception:
+                src_path = ""
+        if not src_path:
+            src_path = str(context.scene.get("gfmodel_last_import_path", "") or "").strip()
+        if not src_path:
+            self.report({"ERROR"}, "No last import path stored; import a GFModel first")
+            return {"CANCELLED"}
+
+        try:
+            with open(src_path, "rb") as f:
+                src_data = f.read()
+        except Exception as e:
+            self.report({"ERROR"}, f"Failed to read: {src_path} ({e})")
+            return {"CANCELLED"}
+
+        try:
+            pack_src, wrapper = unwrap_pack(src_data)
+        except Exception as e:
+            self.report({"ERROR"}, f"Texture patch requires RAW_PACK/CM/CP->CM source: {e}")
+            return {"CANCELLED"}
+
+        models, textures, _motions, _shaders = _load_any(pack_src)
+        if not models:
+            self.report({"ERROR"}, "No models found in source file")
+            return {"CANCELLED"}
+
+        model = models[0]
+        try:
+            overrides = _collect_texture_overrides_by_slot(model)
+            new_pack, tex_changed = _patch_pack_textures_rgba8(
+                pack_src,
+                overrides=overrides,
+                texture_mode=str(self.texture_mode),
+                texture_override_format=str(self.texture_override_format),
+                texture_max_size=int(self.texture_max_size),
+            )
+        except Exception as e:
+            self.report({"ERROR"}, f"Texture export failed: {e}")
+            return {"CANCELLED"}
+
+        if int(tex_changed) <= 0:
+            self.report({"INFO"}, "No texture slots matched; nothing to patch")
+            return {"FINISHED"}
+
+        out_bytes = rewrap_pack(wrapper, new_pack)
+        try:
+            out_archive = patch_into_source_archive(context, out_bytes)
+            self.report({"INFO"}, f"Patched archive: {out_archive} (textures={int(tex_changed)})")
+        except Exception as e:
+            self.report({"ERROR"}, f"Texture patch succeeded, but archive patch failed: {e}")
+            return {"CANCELLED"}
+
+        try:
+            context.scene["gfmodel_last_export_texture_mode"] = str(self.texture_mode)
+            context.scene["gfmodel_last_export_texture_max_size"] = int(self.texture_max_size)
+            context.scene["gfmodel_last_export_texture_override_format"] = str(self.texture_override_format)
+        except Exception:
+            pass
+
+        return {"FINISHED"}
+
 
 
 class GFModel_OT_patch_current_scene_rebuild_active_submesh(bpy.types.Operator):

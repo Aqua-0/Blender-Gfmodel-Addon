@@ -1,13 +1,13 @@
-"""Animation/runtime evaluation and UI state (Blender module).
 
-Contains:
-- Motion evaluation helpers
-- Runtime (frame-change) evaluator for SSC-accurate playback
-- UV animation enable toggle handler
-- GFModel N-panel UI
 
-No import/export operator classes live here.
-"""
+
+
+
+
+
+
+
+
 
 from __future__ import annotations
 
@@ -55,13 +55,13 @@ def _mot_eval(kfs: List[_GFMotKeyFrame], frame: int, default: float) -> float:
 
 
 def _bone_uses_ssc(flags: int) -> bool:
-                                                                           
-                                                                                 
+
+
     return (int(flags) & 0x02) != 0
 
 
 def _euler_to_quat_xyz(e: Vector) -> Quaternion:
-                                    
+
     qx = Quaternion((1.0, 0.0, 0.0), e.x)
     qy = Quaternion((0.0, 1.0, 0.0), e.y)
     qz = Quaternion((0.0, 0.0, 1.0), e.z)
@@ -69,7 +69,7 @@ def _euler_to_quat_xyz(e: Vector) -> Quaternion:
 
 
 def _transform_quat_basis(q: Quaternion, conv3: Matrix) -> Quaternion:
-                                                                          
+
     m = conv3 @ q.to_matrix() @ conv3.inverted()
     return m.to_quaternion()
 
@@ -254,7 +254,7 @@ def _gf_runtime_apply_pose(
 def _gf_runtime_ensure_cache(
     ctx: bpy.types.Context, arm_obj: bpy.types.Object
 ) -> Optional[Dict[str, object]]:
-                                                                                                   
+
     ptr = int(arm_obj.as_pointer())
     existing = _GF_RUNTIME_CACHE.get(ptr)
     if existing:
@@ -304,7 +304,7 @@ def _gf_runtime_ensure_cache(
 
     bone_order = sorted([b.name for b in model.skeleton], key=bone_depth)
 
-                                                                                   
+
     rest_abs_by_name: Dict[str, Matrix] = {}
     rest_rel_by_name: Dict[str, Matrix] = {}
     for pb in arm_obj.pose.bones:
@@ -477,7 +477,7 @@ def _apply_uv_anim_enable(scene: bpy.types.Scene) -> None:
         else:
             nt.animation_data.action = None
         toggled += 1
-                               
+
     try:
         bpy.context.view_layer.update()
     except Exception:
@@ -523,7 +523,7 @@ def _runtime_toggle_update(obj: bpy.types.Object, context: bpy.types.Context) ->
         cache["last_frame"] = None
         cache["last_motion"] = None
     if not bool(getattr(obj, "gfmodel_runtime_enabled", False)):
-                                                        
+
         for pb in obj.pose.bones:
             pb.location = (0.0, 0.0, 0.0)
             pb.rotation_mode = "QUATERNION"
