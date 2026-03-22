@@ -1,12 +1,4 @@
 
-
-
-
-
-
-
-
-
 from __future__ import annotations
 
 import struct
@@ -76,12 +68,6 @@ def patch_container(
     align: int = 0x80,
     pad_byte: int = 0x00,
 ) -> bytes:
-
-
-
-
-
-
     cont = parse_container(blob)
     if index < 0 or index >= cont.count:
         raise IndexError("container index out of range")
@@ -96,7 +82,11 @@ def patch_container(
     old_seg = blob[start:end]
     if rep == old_seg:
         return bytes(blob)
-    if len(rep) <= len(old_seg):
+
+
+
+
+    if len(rep) == len(old_seg):
         out = bytearray(blob)
         out[start : start + len(rep)] = rep
         return bytes(out)

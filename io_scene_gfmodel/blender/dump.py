@@ -1,5 +1,4 @@
 
-
 from __future__ import annotations
 
 import json
@@ -15,6 +14,8 @@ from mathutils import Matrix
 from ..core.io import _load_any
 from .anim import _compute_rest_world_mats, _eval_motion_pose_world_mats
 
+
+from .importer_parts.mesh import _read_vertices
 
 def _mat4_to_list(m: Matrix) -> List[List[float]]:
     return [[float(m[r][c]) for c in range(4)] for r in range(4)]

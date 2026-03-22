@@ -1,12 +1,10 @@
 
-
-
-
-
-
 from __future__ import annotations
 
 import struct
+
+
+_MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024
 
 
 def looks_like_lz11(data: bytes) -> bool:
@@ -15,6 +13,8 @@ def looks_like_lz11(data: bytes) -> bool:
         return False
     decoded_len = data[1] | (data[2] << 8) | (data[3] << 16)
     if decoded_len <= 0:
+        return False
+    if decoded_len > int(_MAX_DECOMPRESSED_BYTES):
         return False
 
     return decoded_len > len(data)
@@ -27,6 +27,8 @@ def decompress(data: bytes) -> bytes:
     if (hdr & 0xFF) != 0x11:
         return data
     decoded_len = hdr >> 8
+    if decoded_len <= 0 or decoded_len > int(_MAX_DECOMPRESSED_BYTES):
+        return data
     inp = memoryview(data)[4:]
     in_off = 0
     out = bytearray(decoded_len)
@@ -81,13 +83,6 @@ def decompress(data: bytes) -> bytes:
 
 
 def compress(data: bytes, *, force_literal_prefix: int = 8) -> bytes:
-
-
-
-
-
-
-
     raw = bytes(data)
     n = len(raw)
     if n <= 0:

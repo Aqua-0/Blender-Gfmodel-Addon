@@ -1,13 +1,4 @@
 
-
-
-
-
-
-
-
-
-
 from __future__ import annotations
 
 import struct
@@ -87,12 +78,6 @@ def patch_mini(
     replacement: bytes,
     align: int = 0x80,
 ) -> bytes:
-
-
-
-
-
-
     mini = parse_mini(blob)
     if index < 0 or index >= mini.count:
         raise IndexError("mini index out of range")

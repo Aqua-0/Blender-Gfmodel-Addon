@@ -1,9 +1,4 @@
 
-
-
-
-
-
 from __future__ import annotations
 
 from typing import Dict, Tuple
@@ -104,7 +99,6 @@ def _pack_rgba4(r: int, g: int, b: int, a: int) -> int:
 
 
 def normalize_gf_fmt(fmt: int) -> Tuple[int, int]:
-
     if int(fmt) in _GF_FMT_TO_PICA:
         pica = int(_GF_FMT_TO_PICA[int(fmt)])
         return int(fmt), int(pica)
@@ -122,10 +116,6 @@ def encode_pica_swizzled_from_rgba(
     height: int,
     gf_fmt: int,
 ) -> bytes:
-
-
-
-
     w = int(width)
     h = int(height)
     if w <= 0 or h <= 0:
@@ -260,7 +250,6 @@ def encode_pica_swizzled_from_rgba(
 def _encode_etc1_like(
     raw_rgba: bytes, *, width: int, height: int, with_alpha: bool
 ) -> bytes:
-
     w = int(width)
     h = int(height)
     if (w % 8) != 0 or (h % 8) != 0:
@@ -356,7 +345,6 @@ def _etc_err(a: Tuple[int, int, int], b: Tuple[int, int, int]) -> int:
 
 
 def _encode_etc1_color_block(pixels: list[Tuple[int, int, int, int]]) -> int:
-
     if len(pixels) != 16:
         raise ValueError("ETC1 block must have 16 pixels")
 
@@ -466,7 +454,6 @@ def _encode_etc1_color_block(pixels: list[Tuple[int, int, int, int]]) -> int:
 
 
 def _encode_etc1a4_alpha_block(pixels: list[Tuple[int, int, int, int]]) -> int:
-
     if len(pixels) != 16:
         raise ValueError("ETC1A4 alpha block must have 16 pixels")
     alpha_block = 0

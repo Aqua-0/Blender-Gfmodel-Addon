@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,7 +27,6 @@ def patch_entry_leaf_bytes(
     nested_index: int,
     replacement_leaf_bytes: bytes,
 ) -> bytes:
-
     entry_was_lz11 = looks_like_lz11(entry_bytes)
     entry_dec = decompress(entry_bytes) if entry_was_lz11 else entry_bytes
 
@@ -116,7 +108,6 @@ def patch_archive_leaf_file(
     dst_path: str,
     bit: int = 0,
 ) -> None:
-
     garc = parse_garc_file(ctx.archive_path)
     entry = garc.read_primary_bytes(int(ctx.entry_index))
     new_entry = patch_entry_leaf_bytes(

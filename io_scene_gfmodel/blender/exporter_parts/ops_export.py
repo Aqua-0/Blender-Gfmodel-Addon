@@ -1,9 +1,9 @@
 
-
 from __future__ import annotations
 
 import bpy
 from bpy.props import (
+
     BoolProperty,
     CollectionProperty,
     EnumProperty,
@@ -13,6 +13,8 @@ from bpy.props import (
     StringProperty,
 )
 from bpy_extras.io_utils import ExportHelper
+from .vertex_pack import _pack_vertex_bytes
+
 
 from .export_scene_execute import export_scene_execute
 from .props import GFModel_GrowBuffersMaterialSource

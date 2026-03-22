@@ -1,9 +1,4 @@
 
-
-
-
-
-
 from __future__ import annotations
 
 import struct
@@ -109,12 +104,6 @@ def write_gf_model_pack(
     replacements: Optional[Dict[Tuple[int, int], bytes]] = None,
     align_blobs: int = 0x80,
 ) -> bytes:
-
-
-
-
-
-
     replacements = replacements or {}
     counts = [int(c) for c in pack.counts]
 

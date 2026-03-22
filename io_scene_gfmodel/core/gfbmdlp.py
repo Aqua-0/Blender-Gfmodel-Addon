@@ -1,13 +1,4 @@
 
-
-
-
-
-
-
-
-
-
 from __future__ import annotations
 
 import struct
@@ -26,7 +17,6 @@ class GfbmdlpEntry:
 
 
 def _read_7bit_u32(data: bytes, off: int) -> Tuple[int, int]:
-
     value = 0
     shift = 0
     for _ in range(5):
@@ -46,7 +36,6 @@ def _align_up(x: int, a: int) -> int:
 
 
 def _try_guess_trimmed_end(blob: bytes) -> Optional[int]:
-
     if len(blob) < 8:
         return None
     u0 = struct.unpack_from("<I", blob, 0)[0]
@@ -90,23 +79,6 @@ def _try_guess_trimmed_end(blob: bytes) -> Optional[int]:
 
 
 def parse_gfbmdlp(data: bytes) -> List[GfbmdlpEntry]:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     if len(data) < 0x18:
         raise ValueError("too small for gfbmdlp header")
     magic = struct.unpack_from("<I", data, 0)[0]

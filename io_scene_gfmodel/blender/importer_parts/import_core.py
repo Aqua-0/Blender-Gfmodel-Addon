@@ -1,0 +1,792 @@
+
+from __future__ import annotations
+
+import json
+import os
+import struct
+from typing import Dict, List, Optional, Sequence, Tuple
+
+import bpy
+from bpy.props import BoolProperty, EnumProperty, FloatProperty, StringProperty
+from bpy_extras.io_utils import ImportHelper, axis_conversion
+from mathutils import Matrix, Quaternion, Vector
+from .a094_slot_names import motion_short_tag as _motion_short_tag
+
+
+from .armature import _build_armature
+from .materials import _make_image, _make_material, _shader_key_variants
+from .mesh import _read_vertices, _triangulate
+from .mesh import _bone_uses_ssc
+
+
+
+from ...core.io import _load_any
+from ...core.patch_plan import PatchPlan, steps_to_breadcrumb
+from ...core.pica import (
+
+
+
+
+
+
+
+    _bgra_to_rgba_floats,
+    _decode_rgba_u32,
+    _decode_texenv_update_buffer,
+    _flip_bgra_y,
+    _pica_decode_bitmap_to_bgra,
+)
+from ...core.types import (
+    _GFMaterial,
+    _GFModel,
+    _GFMotion,
+    _GFShader,
+    _GFSubMesh,
+    _GFTexture,
+)
+from ..anim import (
+    _apply_uv_anim_enable,
+    _apply_visibility_anim_enable,
+    _compute_rest_world_mats,
+    _euler_to_quat_xyz,
+    _gf_runtime_cache_armature,
+    _mot_eval,
+    _transform_quat_basis,
+)
+
+
+def _import_model_to_blender(
+    ctx: bpy.types.Context,
+    model: _GFModel,
+    textures: List[_GFTexture],
+    motions: List[_GFMotion],
+    shaders: List[_GFShader],
+    *,
+    import_textures: bool,
+    import_animations: bool,
+    import_material_animations: bool,
+    import_visibility_animations: bool,
+    global_scale: float,
+    axis_forward: str,
+    axis_up: str,
+) -> None:
+    conv = axis_conversion(
+        from_forward=axis_forward, from_up=axis_up, to_forward="-Y", to_up="Z"
+    ).to_4x4()
+    conv3 = conv.to_3x3()
+
+    coll = bpy.data.collections.new(f"GFModel_{model.name}")
+    ctx.scene.collection.children.link(coll)
+    try:
+        ctx.scene["gfmodel_last_import_collection"] = str(coll.name)
+    except Exception:
+        pass
+    try:
+        coll["gfmodel_last_import_path"] = str(
+            ctx.scene.get("gfmodel_last_import_path", "") or ""
+        )
+        coll["gfmodel_last_import_source"] = str(
+            ctx.scene.get("gfmodel_last_import_source", "") or ""
+        )
+        coll["gfmodel_last_import_breadcrumb"] = str(
+            ctx.scene.get("gfmodel_last_import_breadcrumb", "") or ""
+        )
+        coll["gfmodel_axis_forward"] = str(axis_forward)
+        coll["gfmodel_axis_up"] = str(axis_up)
+        coll["gfmodel_global_scale"] = float(global_scale)
+    except Exception:
+        pass
+
+
+
+    try:
+        plan_json = str(
+            ctx.scene.get("gfmodel_pending_patch_plan_json", "") or ""
+        ).strip()
+        if plan_json:
+            coll["gfmodel_patch_plan_json"] = plan_json
+
+            try:
+                del ctx.scene["gfmodel_pending_patch_plan_json"]
+            except Exception:
+                ctx.scene["gfmodel_pending_patch_plan_json"] = ""
+    except Exception:
+        pass
+
+    images: Dict[str, bpy.types.Image] = {}
+    if import_textures:
+        for t in textures:
+            images[t.name] = _make_image(t)
+
+    shader_by_name: Dict[str, _GFShader] = {}
+    for s in shaders:
+        for k in _shader_key_variants(getattr(s, "name", "")):
+            shader_by_name.setdefault(k, s)
+
+    mats_by_name: Dict[str, bpy.types.Material] = {}
+    for m in model.materials:
+        mats_by_name[m.name] = _make_material(m, images, shader_by_name)
+
+    arm_obj = _build_armature(ctx, model, conv, global_scale, coll)
+
+    try:
+        arm_obj["gfmodel_source_path"] = str(
+            ctx.scene.get("gfmodel_last_import_path", "")
+        )
+        arm_obj["gfmodel_axis_forward"] = str(axis_forward)
+        arm_obj["gfmodel_axis_up"] = str(axis_up)
+        arm_obj["gfmodel_global_scale"] = float(global_scale)
+        arm_obj["gfmodel_is_imported"] = 1
+        arm_obj["gfmodel_import_collection"] = str(coll.name)
+        arm_obj["gfmodel_last_import_breadcrumb"] = str(
+            ctx.scene.get("gfmodel_last_import_breadcrumb", "") or ""
+        )
+    except Exception:
+        pass
+
+    mesh_objs_by_sm_name: Dict[str, bpy.types.Object] = {}
+    for submesh_index, sm in enumerate(model.submeshes):
+        positions, normals, uvs, colors, weights = _read_vertices(sm)
+        if not positions or not sm.indices:
+            continue
+
+        verts = [conv @ (p * global_scale) for p in positions]
+        tris = _triangulate(sm.indices, sm.primitive_mode)
+        if not tris:
+            continue
+
+        base_name = f"{model.name}_{sm.name}"
+        unique_name = base_name
+        if unique_name in bpy.data.meshes:
+            unique_name = f"{base_name}_{int(sm.mesh_index)}_{int(sm.face_index)}"
+        if unique_name in bpy.data.meshes:
+            unique_name = f"{base_name}_{int(submesh_index)}"
+
+        mesh = bpy.data.meshes.new(unique_name)
+        obj_name = mesh.name
+        if obj_name in bpy.data.objects:
+            obj_name = f"{obj_name}_obj"
+        if obj_name in bpy.data.objects:
+            obj_name = f"{obj_name}_{int(submesh_index)}"
+        obj = bpy.data.objects.new(obj_name, mesh)
+        coll.objects.link(obj)
+        mesh_objs_by_sm_name[sm.name] = obj
+
+        try:
+            obj["gfmodel_is_imported"] = 1
+            obj["gfmodel_import_collection"] = str(coll.name)
+            obj["gfmodel_source_path"] = str(
+                ctx.scene.get("gfmodel_last_import_path", "") or ""
+            )
+            obj["gfmodel_last_import_breadcrumb"] = str(
+                ctx.scene.get("gfmodel_last_import_breadcrumb", "") or ""
+            )
+            obj["gfmodel_model_name"] = str(model.name)
+            obj["gfmodel_submesh_index"] = int(submesh_index)
+            obj["gfmodel_mesh_index"] = int(sm.mesh_index)
+            obj["gfmodel_face_index"] = int(sm.face_index)
+            obj["gfmodel_material_name"] = str(sm.name)
+            obj["gfmodel_mesh_name"] = str(sm.mesh_name)
+
+            idx_len = int(getattr(sm, "index_data_len", 0) or 0)
+            elem = int(getattr(sm, "index_elem_size", 0) or 0)
+            if elem not in (1, 2):
+                elem = 2
+            obj["gfmodel_index_data_len"] = int(idx_len)
+            obj["gfmodel_index_elem_size"] = int(elem)
+            obj["gfmodel_index_capacity"] = int(idx_len // elem) if idx_len > 0 else 0
+            obj["gfmodel_index_count_file"] = int(len(sm.indices))
+
+            stride = int(getattr(sm, "vertex_stride", 0) or 0)
+            vtx_len = int(len(getattr(sm, "raw_buffer", b"") or b""))
+            obj["gfmodel_vertex_stride"] = int(stride)
+            obj["gfmodel_vertex_data_len"] = int(vtx_len)
+            obj["gfmodel_vertex_capacity"] = int(vtx_len // stride) if stride > 0 else 0
+            obj["gfmodel_vertex_count_file"] = int(getattr(sm, "vertex_count", 0) or 0)
+        except Exception:
+            pass
+
+        mesh.from_pydata([tuple(v) for v in verts], [], [list(t) for t in tris])
+        mesh.validate(verbose=False)
+        mesh.update()
+
+        if normals:
+            mesh.normals_split_custom_set_from_vertices(
+                [tuple((conv.to_3x3() @ n).normalized()) for n in normals]
+            )
+            if hasattr(mesh, "use_auto_smooth"):
+                mesh.use_auto_smooth = True
+
+        uv_layer = mesh.uv_layers.new(name="UVMap")
+        if uv_layer:
+            for poly in mesh.polygons:
+                for li in poly.loop_indices:
+                    vi = mesh.loops[li].vertex_index
+                    uv = uvs[vi] if vi < len(uvs) else Vector((0.0, 0.0))
+                    uv_layer.data[li].uv = (uv.x, uv.y)
+
+        try:
+            col_attr = mesh.color_attributes.get("Col")
+            if col_attr is None:
+                col_attr = mesh.color_attributes.new(
+                    name="Col", domain="CORNER", type="FLOAT_COLOR"
+                )
+            if col_attr is not None:
+                for poly in mesh.polygons:
+                    for li in poly.loop_indices:
+                        vi = mesh.loops[li].vertex_index
+                        c = (
+                            colors[vi]
+                            if vi < len(colors)
+                            else Vector((1.0, 1.0, 1.0, 1.0))
+                        )
+                        col_attr.data[li].color = (
+                            float(max(0.0, min(1.0, c.x))),
+                            float(max(0.0, min(1.0, c.y))),
+                            float(max(0.0, min(1.0, c.z))),
+                            float(max(0.0, min(1.0, c.w))),
+                        )
+        except Exception:
+            pass
+
+        mat = mats_by_name.get(sm.name)
+        if mat:
+            mesh.materials.append(mat)
+            for poly in mesh.polygons:
+                poly.material_index = 0
+
+        obj.parent = arm_obj
+        mod = obj.modifiers.new(name="Armature", type="ARMATURE")
+        mod.object = arm_obj
+
+        for bone in model.skeleton:
+            obj.vertex_groups.get(bone.name) or obj.vertex_groups.new(name=bone.name)
+
+        palette = sm.bone_indices
+        for vi, wlist in enumerate(weights):
+            for bi, bw in wlist:
+                if not palette or bi < 0 or bi >= len(palette):
+                    continue
+                skel_idx = palette[bi]
+                if skel_idx < 0 or skel_idx >= len(model.skeleton):
+                    continue
+                bone_name = model.skeleton[skel_idx].name
+                vg = obj.vertex_groups.get(bone_name)
+                if vg is not None:
+                    vg.add([vi], float(bw), "REPLACE")
+
+    created_actions: Dict[int, bpy.types.Action] = {}
+    if import_animations and motions and model.skeleton:
+        rest_by_name = {b.name: b for b in model.skeleton}
+        bone_by_name = {b.name: b for b in model.skeleton}
+
+        depth_cache: Dict[str, int] = {}
+
+        def bone_depth(name: str) -> int:
+            if name in depth_cache:
+                return depth_cache[name]
+            b = bone_by_name.get(name)
+            if b is None or not b.parent:
+                depth_cache[name] = 0
+                return 0
+            depth_cache[name] = 1 + bone_depth(b.parent)
+            return depth_cache[name]
+
+        bone_order = sorted([b.name for b in model.skeleton], key=bone_depth)
+
+        ctx.view_layer.objects.active = arm_obj
+        arm_obj.animation_data_create()
+
+        rest_abs_by_name: Dict[str, Matrix] = {}
+        rest_rel_by_name: Dict[str, Matrix] = {}
+        for pb in arm_obj.pose.bones:
+            rest_abs_by_name[pb.name] = pb.bone.matrix_local.copy()
+        for name in bone_order:
+            rb = rest_by_name.get(name)
+            rest_abs = rest_abs_by_name.get(name)
+            if rb is None or rest_abs is None:
+                continue
+            if rb.parent and rb.parent in rest_abs_by_name:
+                parent_rest_abs = rest_abs_by_name[rb.parent]
+                rest_rel_by_name[name] = parent_rest_abs.inverted() @ rest_abs
+            else:
+                rest_rel_by_name[name] = rest_abs
+
+        _gf_runtime_cache_armature(
+            arm_obj,
+            model=model,
+            motions=motions,
+            conv=conv,
+            conv3=conv3,
+            global_scale=global_scale,
+            bone_order=bone_order,
+            rest_by_name=rest_by_name,
+            rest_rel_by_name=rest_rel_by_name,
+        )
+        try:
+            arm_obj.gfmodel_runtime_motion_index = 0
+        except Exception:
+            pass
+
+        for mot in motions:
+            if mot.frames_count <= 0:
+                print(f"[GFModel] Skip motion {mot.index}: frames_count=0")
+                continue
+            if not mot.bones:
+                print(
+                    f"[GFModel] Skip skeletal action for motion {mot.index}: bones=0 (uv={len(mot.uv_transforms)})"
+                )
+                continue
+
+            action = bpy.data.actions.new(name=f"{model.name}_{_motion_short_tag(mot)}")
+            try:
+                action.use_frame_range = True
+                action.frame_start = 0.0
+                action.frame_end = float(max(0, int(mot.frames_count) - 1))
+            except Exception:
+                pass
+            arm_obj.animation_data.action = action
+            created_actions[mot.index] = action
+            try:
+                action["gfmodel_motion_index"] = int(getattr(mot, "index", 0) or 0)
+                action["gfmodel_motion_pack"] = str(getattr(mot, "gfmodel_pack", "") or "")
+                action["gfmodel_motion_slot_name"] = str(getattr(mot, "gfmodel_slot_name", "") or "")
+                pj = str(getattr(mot, "gfmodel_patch_plan_json", "") or "").strip()
+                if pj:
+                    action["gfmodel_motion_patch_plan_json"] = pj
+            except Exception:
+                pass
+            arm_obj.rotation_mode = "QUATERNION"
+            arm_obj.scale = (1.0, 1.0, 1.0)
+
+            for pb in arm_obj.pose.bones:
+                pb.rotation_mode = "QUATERNION"
+
+            bt_by_name = {bt.name: bt for bt in mot.bones}
+
+            for frame in range(mot.frames_count):
+                bpy.context.scene.frame_set(frame)
+                pose_mats: Dict[str, Matrix] = {}
+                for name in bone_order:
+                    pb = arm_obj.pose.bones.get(name)
+                    rb = rest_by_name.get(name)
+                    if pb is None or rb is None:
+                        continue
+                    bt = bt_by_name.get(name)
+
+                    sx = _mot_eval(bt.sx, frame, rb.scale.x) if bt else rb.scale.x
+                    sy = _mot_eval(bt.sy, frame, rb.scale.y) if bt else rb.scale.y
+                    sz = _mot_eval(bt.sz, frame, rb.scale.z) if bt else rb.scale.z
+
+                    tx = (
+                        _mot_eval(bt.tx, frame, rb.translation.x)
+                        if bt
+                        else rb.translation.x
+                    )
+                    ty = (
+                        _mot_eval(bt.ty, frame, rb.translation.y)
+                        if bt
+                        else rb.translation.y
+                    )
+                    tz = (
+                        _mot_eval(bt.tz, frame, rb.translation.z)
+                        if bt
+                        else rb.translation.z
+                    )
+
+                    rx = _mot_eval(bt.rx, frame, rb.rotation.x) if bt else rb.rotation.x
+                    ry = _mot_eval(bt.ry, frame, rb.rotation.y) if bt else rb.rotation.y
+                    rz = _mot_eval(bt.rz, frame, rb.rotation.z) if bt else rb.rotation.z
+
+                    if bt and bt.is_axis_angle:
+                        axis = Vector((rx, ry, rz))
+                        angle = axis.length * 2.0
+                        if angle > 0:
+                            q_cur = Quaternion(axis.normalized(), angle)
+                        else:
+                            q_cur = Quaternion((1.0, 0.0, 0.0, 0.0))
+                    else:
+                        q_cur = _euler_to_quat_xyz(Vector((rx, ry, rz)))
+
+                    q_cur_t = _transform_quat_basis(q_cur, conv3)
+                    t_anim = Matrix.Translation(
+                        conv @ (Vector((tx, ty, tz)) * global_scale)
+                    )
+                    r_anim = q_cur_t.to_matrix().to_4x4()
+                    s_anim = Matrix.Diagonal(Vector((sx, sy, sz, 1.0)))
+                    local_mat = t_anim @ r_anim @ s_anim
+
+                    parent_name = rb.parent
+                    if parent_name and parent_name in pose_mats:
+                        if _bone_uses_ssc(int(rb.flags)):
+                            prb = rest_by_name.get(parent_name)
+                            pbt = bt_by_name.get(parent_name)
+                            psx = (
+                                _mot_eval(pbt.sx, frame, prb.scale.x)
+                                if (pbt and prb)
+                                else (prb.scale.x if prb else 1.0)
+                            )
+                            psy = (
+                                _mot_eval(pbt.sy, frame, prb.scale.y)
+                                if (pbt and prb)
+                                else (prb.scale.y if prb else 1.0)
+                            )
+                            psz = (
+                                _mot_eval(pbt.sz, frame, prb.scale.z)
+                                if (pbt and prb)
+                                else (prb.scale.z if prb else 1.0)
+                            )
+
+                            inv_psx = 1.0 / psx if psx != 0 else 0.0
+                            inv_psy = 1.0 / psy if psy != 0 else 0.0
+                            inv_psz = 1.0 / psz if psz != 0 else 0.0
+                            inv_s_parent = Matrix.Diagonal(
+                                Vector((inv_psx, inv_psy, inv_psz, 1.0))
+                            )
+
+                            t_scaled = Vector((tx * psx, ty * psy, tz * psz))
+                            t_anim = Matrix.Translation(
+                                conv @ (t_scaled * global_scale)
+                            )
+                            local_mat_ssc = t_anim @ r_anim @ s_anim
+
+                            pose_mat = (
+                                pose_mats[parent_name] @ inv_s_parent @ local_mat_ssc
+                            )
+                        else:
+                            pose_mat = pose_mats[parent_name] @ local_mat
+                    else:
+                        pose_mat = local_mat
+
+                    pose_mats[name] = pose_mat
+
+                    if (
+                        rb.parent
+                        and rb.parent in pose_mats
+                        and rb.parent in rest_abs_by_name
+                    ):
+                        pose_local = pose_mats[rb.parent].inverted() @ pose_mat
+                    else:
+                        pose_local = pose_mat
+                    rest_local = rest_rel_by_name.get(name)
+                    if rest_local is None:
+                        rest_local = pb.bone.matrix_local.copy()
+                    pb.matrix_basis = rest_local.inverted() @ pose_local
+                    pb.keyframe_insert(data_path="location", frame=frame)
+                    pb.keyframe_insert(data_path="rotation_quaternion", frame=frame)
+                    pb.keyframe_insert(data_path="scale", frame=frame)
+
+                dbg_enabled = bool(
+                    getattr(ctx.scene, "gfmodel_debug_animations", False)
+                )
+                dbg_motion = int(getattr(ctx.scene, "gfmodel_debug_motion", -1))
+                if (
+                    dbg_enabled
+                    and (dbg_motion < 0 or dbg_motion == mot.index)
+                    and frame < 8
+                ):
+                    dbg_name = getattr(ctx.scene, "gfmodel_debug_bone", "Waist")
+                    m = pose_mats.get(dbg_name)
+                    if m is not None:
+                        loc, rot, sca = m.decompose()
+                        print(
+                            f"[GFModel][AnimDebug] mot={mot.index} frame={frame} bone={dbg_name} "
+                            f"loc=({loc.x:.4f},{loc.y:.4f},{loc.z:.4f}) "
+                            f"rot=({rot.w:.4f},{rot.x:.4f},{rot.y:.4f},{rot.z:.4f}) "
+                            f"sca=({sca.x:.4f},{sca.y:.4f},{sca.z:.4f})"
+                        )
+
+        try:
+            arm_obj.animation_data.action = None
+        except Exception:
+            pass
+
+        try:
+            bpy.context.scene.frame_set(0)
+        except Exception:
+            pass
+        for pb in arm_obj.pose.bones:
+            pb.location = (0.0, 0.0, 0.0)
+            pb.rotation_mode = "QUATERNION"
+            pb.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+            pb.scale = (1.0, 1.0, 1.0)
+        try:
+            bpy.context.view_layer.update()
+        except Exception:
+            pass
+    if import_material_animations and motions:
+        for mot in motions:
+            if not mot.uv_transforms or mot.frames_count <= 0:
+                continue
+
+            mats_in_motion = {uv.name for uv in mot.uv_transforms}
+            for mat_name in mats_in_motion:
+                mat = mats_by_name.get(mat_name)
+                if mat is None or mat.node_tree is None:
+                    continue
+                nt = mat.node_tree
+                nt.animation_data_create()
+                action = bpy.data.actions.new(
+                    name=f"{model.name}_{_motion_short_tag(mot)}_UV_{mat.name}"
+                )
+                try:
+                    action.use_frame_range = True
+                    action.frame_start = 0.0
+                    action.frame_end = float(max(0, int(mot.frames_count) - 1))
+                except Exception:
+                    pass
+                nt.animation_data.action = action
+
+                mapping_defaults: Dict[
+                    str,
+                    Tuple[
+                        Tuple[float, float, float],
+                        Tuple[float, float, float],
+                        Tuple[float, float, float],
+                    ],
+                ] = {}
+                for uv in (u for u in mot.uv_transforms if u.name == mat_name):
+                    mapping = mat.node_tree.nodes.get(f"GF_MAPPING_{uv.unit_index}")
+                    if mapping is None:
+                        continue
+                    loc = tuple(mapping.inputs["Location"].default_value)
+                    rotv = tuple(mapping.inputs["Rotation"].default_value)
+                    scv = tuple(mapping.inputs["Scale"].default_value)
+                    mapping_defaults[mapping.name] = (loc, rotv, scv)
+                for frame in range(mot.frames_count):
+                    bpy.context.scene.frame_set(frame)
+                    for uv in (u for u in mot.uv_transforms if u.name == mat_name):
+                        mapping = mat.node_tree.nodes.get(f"GF_MAPPING_{uv.unit_index}")
+                        if mapping is None:
+                            continue
+
+                        sx = _mot_eval(uv.sx, frame, 1.0)
+                        sy = _mot_eval(uv.sy, frame, 1.0)
+                        rot = _mot_eval(uv.rot, frame, 0.0)
+                        tx = _mot_eval(uv.tx, frame, 0.0)
+                        ty = _mot_eval(uv.ty, frame, 0.0)
+
+                        loc = mapping.inputs["Location"].default_value
+                        loc[0] = tx
+                        loc[1] = ty
+                        mapping.inputs["Location"].default_value = loc
+
+                        rvec = mapping.inputs["Rotation"].default_value
+                        rvec[2] = rot
+                        mapping.inputs["Rotation"].default_value = rvec
+
+                        sc = mapping.inputs["Scale"].default_value
+                        sc[0] = sx
+                        sc[1] = sy
+                        mapping.inputs["Scale"].default_value = sc
+
+                        mapping.inputs["Location"].keyframe_insert(
+                            data_path="default_value", frame=frame
+                        )
+                        mapping.inputs["Rotation"].keyframe_insert(
+                            data_path="default_value", frame=frame
+                        )
+                        mapping.inputs["Scale"].keyframe_insert(
+                            data_path="default_value", frame=frame
+                        )
+
+                mat["gfmodel_has_uv_anims"] = True
+                mat["gfmodel_uv_action"] = action.name
+                nt.animation_data.action = None
+
+                for node_name, (loc, rotv, scv) in mapping_defaults.items():
+                    node = mat.node_tree.nodes.get(node_name)
+                    if node is None:
+                        continue
+                    node.inputs["Location"].default_value = loc
+                    node.inputs["Rotation"].default_value = rotv
+                    node.inputs["Scale"].default_value = scv
+
+        _apply_uv_anim_enable(ctx.scene)
+
+    if import_visibility_animations and motions:
+        for mot in motions:
+            if not mot.visibility_tracks or mot.frames_count <= 0:
+                continue
+            for track in mot.visibility_tracks:
+                obj = (
+                    mesh_objs_by_sm_name.get(track.name)
+                    or bpy.data.objects.get(f"{model.name}_{track.name}")
+                    or bpy.data.objects.get(track.name)
+                )
+                if obj is None:
+                    continue
+                obj.animation_data_create()
+                action = bpy.data.actions.new(
+                    name=f"{model.name}_{_motion_short_tag(mot)}_VIS_{obj.name}"
+                )
+                try:
+                    action.use_frame_range = True
+                    action.frame_start = 0.0
+                    action.frame_end = float(max(0, int(mot.frames_count) - 1))
+                except Exception:
+                    pass
+                obj.animation_data.action = action
+                hide_default = (bool(obj.hide_viewport), bool(obj.hide_render))
+
+                for frame in range(mot.frames_count):
+                    bpy.context.scene.frame_set(frame)
+                    visible = (
+                        bool(track.values[frame])
+                        if frame < len(track.values)
+                        else bool(track.values[-1])
+                    )
+                    obj.hide_viewport = not visible
+                    obj.hide_render = not visible
+                    obj.keyframe_insert(data_path="hide_viewport", frame=frame)
+                    obj.keyframe_insert(data_path="hide_render", frame=frame)
+
+                obj["gfmodel_has_vis_anims"] = True
+                obj["gfmodel_vis_action"] = action.name
+                obj.animation_data.action = None
+                obj.hide_viewport, obj.hide_render = hide_default
+
+        _apply_visibility_anim_enable(ctx.scene)
+
+
+def _import_gfmodel_bytes(
+    context: bpy.types.Context,
+    data: bytes,
+    *,
+    source_path: str,
+    import_textures: bool,
+    import_animations: bool,
+    import_material_animations: bool = True,
+    import_visibility_animations: bool = True,
+    global_scale: float = 1.0,
+    axis_forward: str = "-Z",
+    axis_up: str = "Y",
+) -> bool:
+
+    try:
+        context.scene["gfmodel_last_import_source"] = str(source_path)
+        context.scene["gfmodel_last_import_breadcrumb"] = str(source_path)
+    except Exception:
+        pass
+
+    source_path_real = str(source_path)
+    try:
+        if not os.path.isfile(source_path_real):
+            import hashlib
+            import tempfile
+
+            h = hashlib.md5(data).hexdigest()[:12]
+            tmp_root = ""
+            try:
+                tmp_root = str(getattr(bpy.app, "tempdir", "") or "").strip()
+            except Exception:
+                tmp_root = ""
+            if not tmp_root:
+                tmp_root = tempfile.gettempdir()
+            base = os.path.join(tmp_root, "gfmodel_imports")
+            os.makedirs(base, exist_ok=True)
+            source_path_real = os.path.join(base, f"import_{h}.bin")
+            if (not os.path.exists(source_path_real)) or (
+                os.path.getsize(source_path_real) != len(data)
+            ):
+                with open(source_path_real, "wb") as f:
+                    f.write(data)
+    except Exception:
+        source_path_real = str(source_path)
+
+    models, textures, motions, shaders = _load_any(data)
+    return _import_gfmodel_loaded(
+        context,
+        models=models,
+        textures=textures,
+        motions=motions,
+        shaders=shaders,
+        source_path=source_path_real,
+        import_textures=import_textures,
+        import_animations=import_animations,
+        import_material_animations=import_material_animations,
+        import_visibility_animations=import_visibility_animations,
+        global_scale=global_scale,
+        axis_forward=axis_forward,
+        axis_up=axis_up,
+    )
+
+
+def _import_gfmodel_bytes_with_extras(
+    context: bpy.types.Context,
+    data: bytes,
+    *,
+    extras: Sequence[bytes],
+    source_path: str,
+    import_textures: bool,
+    import_animations: bool,
+    import_material_animations: bool = True,
+    import_visibility_animations: bool = True,
+    global_scale: float = 1.0,
+    axis_forward: str = "-Z",
+    axis_up: str = "Y",
+) -> bool:
+
+    try:
+        context.scene["gfmodel_last_import_source"] = str(source_path)
+        context.scene["gfmodel_last_import_breadcrumb"] = str(source_path)
+    except Exception:
+        pass
+
+    source_path_real = str(source_path)
+    try:
+        if not os.path.isfile(source_path_real):
+            import hashlib
+            import tempfile
+
+            h = hashlib.md5(data).hexdigest()[:12]
+            tmp_root = ""
+            try:
+                tmp_root = str(getattr(bpy.app, "tempdir", "") or "").strip()
+            except Exception:
+                tmp_root = ""
+            if not tmp_root:
+                tmp_root = tempfile.gettempdir()
+            base = os.path.join(tmp_root, "gfmodel_imports")
+            os.makedirs(base, exist_ok=True)
+            source_path_real = os.path.join(base, f"import_{h}.bin")
+            if (not os.path.exists(source_path_real)) or (
+                os.path.getsize(source_path_real) != len(data)
+            ):
+                with open(source_path_real, "wb") as f:
+                    f.write(data)
+    except Exception:
+        source_path_real = str(source_path)
+
+    models, textures, motions, shaders = _load_any(data)
+
+    for ex in list(extras or []):
+        try:
+            m2, t2, a2, s2 = _load_any(bytes(ex))
+        except Exception:
+            continue
+        if not models:
+            models.extend(m2)
+        textures.extend(t2)
+        motions.extend(a2)
+        shaders.extend(s2)
+
+    return _import_gfmodel_loaded(
+        context,
+        models=models,
+        textures=textures,
+        motions=motions,
+        shaders=shaders,
+        source_path=source_path_real,
+        import_textures=import_textures,
+        import_animations=import_animations,
+        import_material_animations=import_material_animations,
+        import_visibility_animations=import_visibility_animations,
+        global_scale=global_scale,
+        axis_forward=axis_forward,
+        axis_up=axis_up,
+    )
+
+
+
+

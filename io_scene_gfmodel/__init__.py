@@ -8,18 +8,23 @@ bl_info = {
     "category": "Import-Export",
 }
 
-                
-                                                                                            
+
+
+
+
 try:
-    import bpy                
-
-    from .gfmodel_impl import register, unregister
+    import bpy
 except ModuleNotFoundError:
-                                                                                
-    def register() -> None:                          
-        raise RuntimeError("This add-on must be registered from within Blender (bpy).")
 
-    def unregister() -> None:                          
+    def register() -> None:
+        raise RuntimeError(
+            "This add-on must be registered from within Blender (bpy)."
+        )
+
+    def unregister() -> None:
         raise RuntimeError(
             "This add-on must be unregistered from within Blender (bpy)."
         )
+
+else:
+    from .gfmodel_impl import register, unregister

@@ -1,8 +1,4 @@
 
-
-
-
-
 from __future__ import annotations
 
 import struct
@@ -22,13 +18,6 @@ from .types import (
 
 
 def _gfnv1_32(data: bytes) -> int:
-
-
-
-
-
-
-
     prime = 0x01000193
     h = prime
     for b in data:
@@ -55,10 +44,6 @@ class _BinWriter:
     def pad_to_next_boundary(
         self, boundary: int, *, pad: int = 0, minimum: int = 0
     ) -> None:
-
-
-
-
         if boundary <= 0:
             return
         cur = len(self._b)
@@ -135,7 +120,6 @@ def _write_gf_section_header(w: _BinWriter, magic8: bytes, length: int) -> None:
 
 
 def _pica_patch_first_param(cmds: List[int], reg: int, new_param: int) -> bool:
-
     i = 0
     while i + 1 < len(cmds):
         param0_i = i
@@ -164,12 +148,6 @@ def _pica_patch_first_param(cmds: List[int], reg: int, new_param: int) -> bool:
 
 
 def _pica_patch_all_params(cmds: List[int], reg: int, new_param: int) -> int:
-
-
-
-
-
-
     patched = 0
     i = 0
     while i + 1 < len(cmds):
@@ -199,7 +177,6 @@ def _pica_patch_all_params(cmds: List[int], reg: int, new_param: int) -> int:
 
 
 def _pica_get_first_param(cmds: List[int], reg: int) -> Optional[int]:
-
     i = 0
     while i + 1 < len(cmds):
         param0_i = i
@@ -226,12 +203,6 @@ def _pica_get_first_param(cmds: List[int], reg: int) -> Optional[int]:
 
 
 def _pica_write_cmd_stream_raw(w: _BinWriter, cmds: List[int]) -> None:
-
-
-
-
-
-
     for v in cmds:
         w.u32(int(v) & 0xFFFFFFFF)
 
@@ -239,21 +210,12 @@ def _pica_write_cmd_stream_raw(w: _BinWriter, cmds: List[int]) -> None:
 def build_gf_texture_rgba8(
     name: str, width: int, height: int, raw_rgba: bytes
 ) -> _GFTexture:
-
-
-
-
     return _GFTexture(
         name=name, width=int(width), height=int(height), fmt=0x4, raw=raw_rgba
     )
 
 
 def encode_pica_rgba8_swizzled_abgr(raw_rgba: bytes, width: int, height: int) -> bytes:
-
-
-
-
-
     if width % 8 != 0 or height % 8 != 0:
         raise ValueError("RGBA8 swizzle requires width/height multiples of 8")
     if len(raw_rgba) != width * height * 4:
@@ -609,7 +571,6 @@ class _GFPackEntry:
 def parse_gf_model_pack_entries(
     data: bytes,
 ) -> Tuple[List[List[_GFPackEntry]], List[int]]:
-
     if len(data) < 4 + 5 * 4:
         raise ValueError("data too small for GFModelPack")
     pos = 0

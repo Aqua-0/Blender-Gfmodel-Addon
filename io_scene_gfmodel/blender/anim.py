@@ -1,14 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
 from __future__ import annotations
 
 from typing import Dict, List, Optional
@@ -377,6 +367,18 @@ class VIEW3D_PT_gfmodel(bpy.types.Panel):
             row = box.row(align=True)
             row.prop(obj, "gfmodel_runtime_motion_index", text="Motion")
             row.prop(obj, "gfmodel_runtime_loop", text="Loop")
+            box.prop(context.scene, 'gfmodel_sync_preview_range', text='Sync Preview Range')
+            try:
+                act = None
+                if getattr(obj, 'animation_data', None) is not None:
+                    act = obj.animation_data.action
+                if act is not None and str(act.get('gfmodel_motion_patch_plan_json', '') or '').strip():
+                    box.operator(
+                        'gfmodel.patch_selected_action_to_source_motion',
+                        text='Patch Active Action to Source Motion',
+                    )
+            except Exception:
+                pass
         layout.operator("gfmodel.dump_action_json", text="Dump Action JSON")
         layout.operator("gfmodel.dump_eval_json", text="Dump Eval JSON")
         layout.operator("gfmodel.dump_vertices_json", text="Dump Vertices JSON")
@@ -448,6 +450,8 @@ def unregister() -> None:
         del bpy.types.Scene.gfmodel_debug_bone
     if hasattr(bpy.types.Scene, "gfmodel_debug_motion"):
         del bpy.types.Scene.gfmodel_debug_motion
+    if hasattr(bpy.types.Scene, 'gfmodel_sync_preview_range'):
+        del bpy.types.Scene.gfmodel_sync_preview_range
     if hasattr(bpy.types.Object, "gfmodel_runtime_enabled"):
         del bpy.types.Object.gfmodel_runtime_enabled
     if hasattr(bpy.types.Object, "gfmodel_runtime_motion_index"):
@@ -515,6 +519,19 @@ def _vis_toggle_update(scene: bpy.types.Scene, _context: bpy.types.Context) -> N
     _apply_visibility_anim_enable(scene)
 
 
+def _sync_scene_preview_range(scene: bpy.types.Scene, *, start: int, end: int) -> None:
+    try:
+        scene.use_preview_range = True
+        scene.frame_preview_start = int(start)
+        scene.frame_preview_end = int(end)
+        if int(scene.frame_current) < int(start):
+            scene.frame_set(int(start))
+        elif int(scene.frame_current) > int(end):
+            scene.frame_set(int(end))
+    except Exception:
+        pass
+
+
 def _runtime_toggle_update(obj: bpy.types.Object, context: bpy.types.Context) -> None:
     if obj.type != "ARMATURE":
         return
@@ -540,13 +557,29 @@ def _runtime_toggle_update(obj: bpy.types.Object, context: bpy.types.Context) ->
 
 
 def _runtime_motion_update(obj: bpy.types.Object, context: bpy.types.Context) -> None:
-    if not bool(getattr(obj, "gfmodel_runtime_enabled", False)):
+    try:
+        mi = int(getattr(obj, 'gfmodel_runtime_motion_index', 0))
+    except Exception:
+        mi = 0
+
+    if bool(getattr(context.scene, 'gfmodel_sync_preview_range', True)):
+        cache = _GF_RUNTIME_CACHE.get(int(obj.as_pointer()))
+        if cache is None:
+            cache = _gf_runtime_ensure_cache(context, obj)
+        try:
+            motions = cache.get('motions') if isinstance(cache, dict) else None
+            if isinstance(motions, list) and 0 <= mi < len(motions):
+                mot = motions[mi]
+                fc = int(getattr(mot, 'frames_count', 0) or 0)
+                end_fr = max(0, fc - 1)
+                _sync_scene_preview_range(context.scene, start=0, end=end_fr)
+        except Exception:
+            pass
+
+    if not bool(getattr(obj, 'gfmodel_runtime_enabled', False)):
         return
     try:
-        mi = int(getattr(obj, "gfmodel_runtime_motion_index", 0))
-        _gf_runtime_apply_pose(
-            context, obj, int(context.scene.frame_current), motion_index=mi
-        )
+        _gf_runtime_apply_pose(context, obj, int(context.scene.frame_current), motion_index=mi)
     except Exception:
         pass
 

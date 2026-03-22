@@ -1,5 +1,4 @@
 
-
 from __future__ import annotations
 
 from typing import Dict, Optional, Tuple
@@ -24,7 +23,6 @@ def _rgba8_bytes_from_image(
     height: int,
     allow_scale: bool,
 ) -> bytes:
-
     img.pixels[0]
 
     w0, h0 = int(img.size[0]), int(img.size[1])
@@ -61,7 +59,6 @@ def _encode_texture_from_image(
     texture_override_format: str,
     texture_max_size: int,
 ) -> _GFTexture:
-
     mode = str(texture_mode or "KEEP").strip()
     if mode == "KEEP":
         raise ValueError("internal error: encode called with KEEP")
@@ -119,7 +116,6 @@ def _encode_texture_from_image(
 
 
 def _collect_texture_overrides_by_slot(model: "_GFModel") -> Dict[str, bpy.types.Image]:
-
     overrides: Dict[str, bpy.types.Image] = {}
     for mat_def in getattr(model, "materials", []) or []:
         mat = bpy.data.materials.get(str(getattr(mat_def, "name", "") or ""))
@@ -150,7 +146,6 @@ def _patch_pack_textures_rgba8(
     texture_override_format: str = "RGBA8",
     texture_max_size: int,
 ) -> Tuple[bytes, int]:
-
     if texture_mode not in (
         "RGBA8",
         "RGBA8_SAME_SIZE",

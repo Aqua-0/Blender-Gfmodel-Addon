@@ -1,14 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
 from __future__ import annotations
 
 import struct
@@ -96,7 +86,6 @@ def rebuild_with_replaced_data(
     replacement: bytes,
     align_blobs: Optional[int] = None,
 ) -> bytes:
-
     bl = parse_binlinker(data)
     idx = int(index)
     if idx < 0 or idx >= int(bl.file_count):

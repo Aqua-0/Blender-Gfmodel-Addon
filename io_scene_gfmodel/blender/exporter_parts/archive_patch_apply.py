@@ -1,5 +1,4 @@
 
-
 from __future__ import annotations
 
 import os
@@ -103,6 +102,19 @@ def _sanity_check_breadcrumb(context: bpy.types.Context, breadcrumb: str) -> Non
         )
 
 
+def _payload_matches_expected(payload: bytes, expected: bytes) -> bool:
+    p = bytes(payload)
+    e = bytes(expected)
+    if p == e:
+        return True
+    if len(p) < len(e):
+        return False
+    if p[: len(e)] != e:
+        return False
+    tail = p[len(e) :]
+    return not tail or all(b == 0 for b in tail)
+
+
 def _patch_via_legacy_container2(context: bpy.types.Context, out_bytes: bytes) -> str:
     archive_path = str(context.scene.get("gfmodel_patch_source_archive", "")).strip()
     entry_i = int(context.scene.get("gfmodel_patch_source_entry", -1))
@@ -165,7 +177,7 @@ def _patch_via_legacy_container2(context: bpy.types.Context, out_bytes: bytes) -
     cont3 = parse_container(outer2_dec)
     leaf2 = cont3.extract(outer2_dec, int(nest_i))
     leaf2_dec = decompress(leaf2) if looks_like_lz11(leaf2) else leaf2
-    if bytes(leaf2_dec) != bytes(out_bytes):
+    if not _payload_matches_expected(leaf2_dec, out_bytes):
         raise ValueError(
             f"Patched, but verify failed (leaf bytes differ): expected={len(out_bytes)} got={len(leaf2_dec)}"
         )
@@ -174,7 +186,6 @@ def _patch_via_legacy_container2(context: bpy.types.Context, out_bytes: bytes) -
 
 
 def patch_into_source_archive(context: bpy.types.Context, out_bytes: bytes) -> str:
-
     plan_json = _resolve_patch_plan_json(context)
     if not plan_json:
 
@@ -224,7 +235,7 @@ def patch_into_source_archive(context: bpy.types.Context, out_bytes: bytes) -> s
     garc2 = parse_garc_file(out_archive)
     entry2 = garc2.read_primary_bytes(int(plan.entry_index))
     payload2 = extract_via_steps(entry2, plan.steps)
-    if bytes(payload2) != bytes(out_bytes):
+    if not _payload_matches_expected(payload2, out_bytes):
         raise ValueError(
             f"Patched, but verify failed (payload bytes differ): expected={len(out_bytes)} got={len(payload2)}"
         )

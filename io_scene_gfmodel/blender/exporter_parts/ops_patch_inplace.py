@@ -1,5 +1,4 @@
 
-
 from __future__ import annotations
 
 import bpy
@@ -416,6 +415,5 @@ class GFModel_OT_patch_current_scene_verts_topology_tris_in_place(bpy.types.Oper
             return {"CANCELLED"}
         self.report({"INFO"}, "Patched current scene (verts+topo tris in-place)")
         return {"FINISHED"}
-
 
 
