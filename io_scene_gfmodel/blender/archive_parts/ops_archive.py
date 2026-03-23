@@ -388,3 +388,4 @@ class GFModel_OT_archive_verify_entry_payload(bpy.types.Operator):
             self.report({"INFO"}, "Match (prefix). Stored tail is non-uniform/present.")
         return {"FINISHED"}
 
+

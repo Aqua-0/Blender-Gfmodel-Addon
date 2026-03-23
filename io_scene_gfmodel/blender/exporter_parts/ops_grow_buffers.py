@@ -436,8 +436,8 @@ class GFModel_OT_patch_current_scene_grow_buffers_robust(bpy.types.Operator):
         )
 
 
-
-
+                                                                                        
+                                                                                       
         kwargs = {
             "filepath": tmp_path,
             "patch_into_source_archive": True,
@@ -447,7 +447,7 @@ class GFModel_OT_patch_current_scene_grow_buffers_robust(bpy.types.Operator):
             "grow_buffers_uv_strategy": "DUPLICATE",
             "grow_buffers_rebuild_mode": "REBUILD_SPLIT",
             "grow_buffers_patch_all_tagged_submeshes": True,
-
+                                                                                                  
             "grow_buffers_material_sources_json": "",
         }
 
@@ -491,8 +491,8 @@ class GFModel_OT_patch_current_scene_grow_buffers_robust_autoroute(bpy.types.Ope
         )
 
 
-
-
+                                                                                             
+                                                                                                
         kwargs = {
             "filepath": tmp_path,
             "patch_into_source_archive": True,
@@ -503,7 +503,7 @@ class GFModel_OT_patch_current_scene_grow_buffers_robust_autoroute(bpy.types.Ope
             "grow_buffers_rebuild_mode": "CLAMP_ROUTE",
             "grow_buffers_patch_all_tagged_submeshes": True,
             "grow_buffers_auto_route_new_meshes": True,
-
+                                                                               
             "grow_buffers_material_sources_json": "",
         }
 

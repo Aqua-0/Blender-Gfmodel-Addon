@@ -5,40 +5,40 @@ from typing import Dict, Tuple
 
 from .pica import _SWIZZLE_LUT
 
-
+                                                                             
 _GF_FMT_TO_PICA: Dict[int, int] = {
-    0x2: 3,
-    0x3: 1,
-    0x4: 0,
-    0x16: 4,
-    0x17: 2,
-    0x23: 5,
-    0x24: 6,
-    0x25: 7,
-    0x26: 8,
-    0x27: 9,
-    0x28: 10,
-    0x29: 11,
-    0x2A: 12,
-    0x2B: 13,
+    0x2: 3,          
+    0x3: 1,        
+    0x4: 0,         
+    0x16: 4,         
+    0x17: 2,            
+    0x23: 5,       
+    0x24: 6,         
+    0x25: 7,      
+    0x26: 8,      
+    0x27: 9,       
+    0x28: 10,      
+    0x29: 11,      
+    0x2A: 12,        
+    0x2B: 13,          
 }
 
-
+                                                           
 _PICA_TO_GF_FMT: Dict[int, int] = {
-    0: 0x4,
-    1: 0x3,
-    2: 0x17,
-    3: 0x2,
-    4: 0x16,
-    5: 0x23,
-    6: 0x24,
-    7: 0x25,
-    8: 0x26,
-    9: 0x27,
-    10: 0x28,
-    11: 0x29,
-    12: 0x2A,
-    13: 0x2B,
+    0: 0x4,         
+    1: 0x3,        
+    2: 0x17,            
+    3: 0x2,          
+    4: 0x16,         
+    5: 0x23,       
+    6: 0x24,         
+    7: 0x25,      
+    8: 0x26,      
+    9: 0x27,       
+    10: 0x28,      
+    11: 0x29,      
+    12: 0x2A,        
+    13: 0x2B,          
 }
 
 
@@ -71,7 +71,7 @@ def _clamp_u8(x: int) -> int:
 
 
 def _luma_u8(r: int, g: int, b: int) -> int:
-
+                                            
     return _clamp_u8((77 * int(r) + 150 * int(g) + 29 * int(b) + 128) >> 8)
 
 
@@ -135,20 +135,20 @@ def encode_pica_swizzled_from_rgba(
             with_alpha=(pica == 13),
         )
 
-
+                                                        
     fmt_bpp = {
-        0: 32,
-        1: 24,
-        2: 16,
-        3: 16,
-        4: 16,
-        5: 16,
-        6: 16,
-        7: 8,
-        8: 8,
-        9: 8,
-        10: 4,
-        11: 4,
+        0: 32,         
+        1: 24,        
+        2: 16,            
+        3: 16,          
+        4: 16,         
+        5: 16,       
+        6: 16,         
+        7: 8,      
+        8: 8,      
+        9: 8,       
+        10: 4,      
+        11: 4,      
     }
     bpp = int(fmt_bpp.get(int(pica), 0))
     if bpp <= 0:
@@ -178,54 +178,54 @@ def encode_pica_swizzled_from_rgba(
                 sy = int(h - 1 - (ty + y))
                 r, g, b, a = get_rgba_at(sx, sy)
 
-                if pica == 0:
+                if pica == 0:                          
                     out[i_off + 0] = int(a) & 0xFF
                     out[i_off + 1] = int(r) & 0xFF
                     out[i_off + 2] = int(g) & 0xFF
                     out[i_off + 3] = int(b) & 0xFF
                     i_off += 4
-                elif pica == 1:
+                elif pica == 1:        
                     out[i_off + 0] = int(r) & 0xFF
                     out[i_off + 1] = int(g) & 0xFF
                     out[i_off + 2] = int(b) & 0xFF
                     i_off += 3
-                elif pica == 2:
+                elif pica == 2:            
                     v = _pack_rgba5551(r, g, b, a)
                     out[i_off + 0] = v & 0xFF
                     out[i_off + 1] = (v >> 8) & 0xFF
                     i_off += 2
-                elif pica == 3:
+                elif pica == 3:          
                     v = _pack_rgb565(r, g, b)
                     out[i_off + 0] = v & 0xFF
                     out[i_off + 1] = (v >> 8) & 0xFF
                     i_off += 2
-                elif pica == 4:
+                elif pica == 4:         
                     v = _pack_rgba4(r, g, b, a)
                     out[i_off + 0] = v & 0xFF
                     out[i_off + 1] = (v >> 8) & 0xFF
                     i_off += 2
-                elif pica == 5:
+                elif pica == 5:              
                     l = _luma_u8(r, g, b)
                     out[i_off + 0] = int(a) & 0xFF
                     out[i_off + 1] = int(l) & 0xFF
                     i_off += 2
-                elif pica == 6:
-
+                elif pica == 6:                                     
+                                                                                        
                     out[i_off + 0] = int(g) & 0xFF
                     out[i_off + 1] = int(b) & 0xFF
                     i_off += 2
-                elif pica == 7:
+                elif pica == 7:      
                     out[i_off] = _luma_u8(r, g, b) & 0xFF
                     i_off += 1
-                elif pica == 8:
+                elif pica == 8:      
                     out[i_off] = int(a) & 0xFF
                     i_off += 1
-                elif pica == 9:
+                elif pica == 9:                                    
                     l4 = (_luma_u8(r, g, b) >> 4) & 0xF
                     a4 = (int(a) >> 4) & 0xF
                     out[i_off] = int((l4 << 4) | a4) & 0xFF
                     i_off += 1
-                elif pica == 10:
+                elif pica == 10:      
                     l4 = (_luma_u8(r, g, b) >> 4) & 0xF
                     bi = i_off >> 1
                     if (i_off & 1) == 0:
@@ -233,7 +233,7 @@ def encode_pica_swizzled_from_rgba(
                     else:
                         out[bi] = int((out[bi] & 0x0F) | (l4 << 4)) & 0xFF
                     i_off += 1
-                elif pica == 11:
+                elif pica == 11:      
                     a4 = (int(a) >> 4) & 0xF
                     bi = i_off >> 1
                     if (i_off & 1) == 0:
@@ -257,19 +257,19 @@ def _encode_etc1_like(
     if len(raw_rgba) != w * h * 4:
         raise ValueError("raw_rgba size mismatch")
 
-
+                                                
     xt = (0, 4, 0, 4)
     yt = (0, 0, 4, 4)
 
     out = bytearray((w * h) if with_alpha else (w * h // 2))
 
     def get_rgba_at(sx: int, sy: int) -> Tuple[int, int, int, int]:
-
+                                                
         sy = (h - 1 - int(sy)) & 0x7FFFFFFF
         si = (int(sy) * w + int(sx)) * 4
-
-
-
+                                                                                             
+                                                                                             
+                                               
         r = int(raw_rgba[si + 0])
         g = int(raw_rgba[si + 1])
         b = int(raw_rgba[si + 2])
@@ -282,8 +282,8 @@ def _encode_etc1_like(
             for bi in range(4):
                 bx = int(tx + xt[bi])
                 by = int(ty + yt[bi])
-
-
+                                                                                            
+                                                                                
                 block_rgba: list[Tuple[int, int, int, int]] = [(0, 0, 0, 0)] * 16
                 for px in range(4):
                     for py in range(4):
@@ -295,7 +295,7 @@ def _encode_etc1_like(
                     out[o : o + 8] = ab.to_bytes(8, "little")
                     o += 8
                 cb = _encode_etc1_color_block(block_rgba)
-
+                                                                        
                 out[o : o + 8] = cb.to_bytes(8, "big")
                 o += 8
     return bytes(out)
@@ -348,13 +348,13 @@ def _encode_etc1_color_block(pixels: list[Tuple[int, int, int, int]]) -> int:
     if len(pixels) != 16:
         raise ValueError("ETC1 block must have 16 pixels")
 
-
+                                                                            
     def part(flip: int) -> Tuple[list[int], list[int]]:
         a_idx: list[int] = []
         b_idx: list[int] = []
         for x in range(4):
             for y in range(4):
-                idx = x * 4 + y
+                idx = x * 4 + y                                 
                 if flip == 0:
                     (a_idx if x < 2 else b_idx).append(idx)
                 else:
@@ -371,7 +371,7 @@ def _encode_etc1_color_block(pixels: list[Tuple[int, int, int, int]]) -> int:
         ar, ag, ab = _avg_rgb(a_pix)
         br, bg, bb = _avg_rgb(b_pix)
 
-
+                                                       
         r1n = _quant4(int(round(ar / 17.0)))
         g1n = _quant4(int(round(ag / 17.0)))
         b1n = _quant4(int(round(ab / 17.0)))
@@ -416,7 +416,7 @@ def _encode_etc1_color_block(pixels: list[Tuple[int, int, int, int]]) -> int:
 
     flip, r1n, g1n, b1n, r2n, g2n, b2n, t1, t2, selectors = best
 
-
+                                                                                         
     block_low = 0
     for x in range(4):
         for y in range(4):
@@ -436,11 +436,11 @@ def _encode_etc1_color_block(pixels: list[Tuple[int, int, int, int]]) -> int:
                     block_low |= 1 << (idx - 8)
     block_low &= 0xFFFFFFFF
 
-
+                                                              
     block_high = 0
     block_high |= (int(t1) & 7) << 29
     block_high |= (int(t2) & 7) << 26
-    block_high |= 0 << 25
+    block_high |= 0 << 25          
     block_high |= (1 if int(flip) else 0) << 24
     block_high |= (int(r1n) & 0xF) << 20
     block_high |= (int(r2n) & 0xF) << 16
@@ -459,7 +459,7 @@ def _encode_etc1a4_alpha_block(pixels: list[Tuple[int, int, int, int]]) -> int:
     alpha_block = 0
     for x in range(4):
         for y in range(4):
-            idx = x * 4 + y
+            idx = x * 4 + y                                       
             a8 = int(pixels[idx][3])
             a4 = _quant4(int(round(a8 / 17.0)))
             shift = idx << 2

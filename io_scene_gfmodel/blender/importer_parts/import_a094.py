@@ -112,7 +112,7 @@ def _import_gfmodel_bytes_with_a094_group(
 
         b = bytes(blob)
         if not archive_root:
-
+                                                                                      
             sp = str(source_path or '')
             if '#' in sp:
                 archive_root = sp.split('#', 1)[0]
@@ -162,7 +162,7 @@ def _import_gfmodel_bytes_with_a094_group(
                     mot_accum.append(mot)
             continue
 
-
+                                                                                         
         try:
             _m2, t2, _a2, s2 = _load_any(b)
         except Exception:
@@ -208,8 +208,8 @@ def _import_gfmodel_bytes_with_a094_group(
         source_path_real = str(source_path)
 
 
-
-
+                                                                               
+                                                                  
     try:
         context.scene['gfmodel_last_import_source'] = str(source_path)
         context.scene['gfmodel_last_import_breadcrumb'] = str(source_path)
@@ -231,3 +231,4 @@ def _import_gfmodel_bytes_with_a094_group(
         axis_forward=axis_forward,
         axis_up=axis_up,
     )
+

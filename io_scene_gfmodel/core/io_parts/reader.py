@@ -93,12 +93,12 @@ class _BinReader:
 
 
 def _lzss_ninty_decompress(data: bytes) -> bytes:
-
+                                                                               
     return _lz11_decompress(bytes(data))
 
 
 def _looks_like_lz11(data: bytes) -> bool:
-
+                                                                               
     return bool(_lz11_looks_like(bytes(data)))
 
 

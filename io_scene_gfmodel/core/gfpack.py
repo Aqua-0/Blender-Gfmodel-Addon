@@ -19,7 +19,7 @@ class GFPackEntry:
 @dataclass(frozen=True)
 class GFModelPack:
     counts: Tuple[int, int, int, int, int]
-    slots: Tuple[Tuple[Optional[GFPackEntry], ...], ...]
+    slots: Tuple[Tuple[Optional[GFPackEntry], ...], ...]              
 
     def get(self, section: int, index: int) -> Optional[GFPackEntry]:
         return self.slots[int(section)][int(index)]
@@ -39,7 +39,7 @@ def parse_gf_model_pack(data: bytes) -> GFModelPack:
     counts = tuple(_u32(data, 4 + i * 4) for i in range(5))
     ptr_base = 4 + 5 * 4
 
-
+                                                 
     ptr_tables: List[List[int]] = []
     off = ptr_base
     for sect in range(5):
@@ -51,7 +51,7 @@ def parse_gf_model_pack(data: bytes) -> GFModelPack:
         ptr_tables.append(ptrs)
         off += c * 4
 
-
+                                                                    
     headers: List[Tuple[int, int, str, int]] = []
     for sect in range(5):
         for idx, ptr in enumerate(ptr_tables[sect]):
@@ -68,7 +68,7 @@ def parse_gf_model_pack(data: bytes) -> GFModelPack:
                 continue
             headers.append((int(sect), int(idx), name, int(addr)))
 
-
+                                                         
     by_addr = sorted(headers, key=lambda t: t[3])
     addr_to_end: Dict[int, int] = {}
     for i, (_s, _idx, _n, addr) in enumerate(by_addr):
@@ -77,7 +77,7 @@ def parse_gf_model_pack(data: bytes) -> GFModelPack:
             end = int(by_addr[i + 1][3])
         addr_to_end[int(addr)] = int(end)
 
-
+                          
     slots: List[List[Optional[GFPackEntry]]] = [
         [None for _ in range(int(counts[s]))] for s in range(5)
     ]
@@ -111,12 +111,12 @@ def write_gf_model_pack(
     out += struct.pack("<I", 0x00010000)
     out += struct.pack("<5I", *counts)
 
-
+                                                             
     ptr_tables_off = len(out)
     total_ptrs = sum(counts)
     out += b"\x00" * (total_ptrs * 4)
 
-
+                                                                                      
     addr_patch_by_slot: Dict[Tuple[int, int], int] = {}
     ptr_cursor = 0
     for sect in range(5):
@@ -135,10 +135,10 @@ def write_gf_model_pack(
             out += b"\x00\x00\x00\x00"
             ptr_cursor += 1
 
-
-
-
-
+                                                                        
+     
+                                                                                            
+                                                                                   
     def align(n: int) -> None:
         if n <= 1:
             return

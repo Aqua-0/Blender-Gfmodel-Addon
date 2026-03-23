@@ -11,12 +11,12 @@ from .importer import _import_gfmodel_bytes
 
 
 class GFModelMiniFileEntry(bpy.types.PropertyGroup):
-    index: bpy.props.IntProperty()
-    start_hex: bpy.props.StringProperty()
-    end_hex: bpy.props.StringProperty()
-    length_hex: bpy.props.StringProperty()
-    magic4: bpy.props.StringProperty()
-    mini_info: bpy.props.StringProperty()
+    index: bpy.props.IntProperty()                            
+    start_hex: bpy.props.StringProperty()                            
+    end_hex: bpy.props.StringProperty()                            
+    length_hex: bpy.props.StringProperty()                            
+    magic4: bpy.props.StringProperty()                            
+    mini_info: bpy.props.StringProperty()                            
 
 
 class GFModel_UL_mini_file_entries(bpy.types.UIList):
@@ -31,7 +31,7 @@ class GFModel_UL_mini_file_entries(bpy.types.UIList):
         active_propname: str,
         index: int,
     ) -> None:
-        e: GFModelMiniFileEntry = item
+        e: GFModelMiniFileEntry = item                            
         row = layout.row(align=True)
         row.label(text=f"{int(e.index):04d}")
         row.label(text=str(getattr(e, "magic4", "")))
@@ -342,24 +342,24 @@ def register() -> None:
     for c in classes:
         bpy.utils.register_class(c)
 
-    bpy.types.Scene.gfmodel_mini_path = StringProperty(
+    bpy.types.Scene.gfmodel_mini_path = StringProperty(                              
         name="Mini Path",
         default="",
         subtype="FILE_PATH",
     )
-    bpy.types.Scene.gfmodel_mini_entries = CollectionProperty(
+    bpy.types.Scene.gfmodel_mini_entries = CollectionProperty(                              
         type=GFModelMiniFileEntry
     )
-    bpy.types.Scene.gfmodel_mini_selected = IntProperty(
+    bpy.types.Scene.gfmodel_mini_selected = IntProperty(                              
         name="Selected Mini File",
         default=0,
         min=0,
     )
 
-    bpy.types.Scene.gfmodel_mini2_entries = CollectionProperty(
+    bpy.types.Scene.gfmodel_mini2_entries = CollectionProperty(                              
         type=GFModelMiniFileEntry
     )
-    bpy.types.Scene.gfmodel_mini2_selected = IntProperty(
+    bpy.types.Scene.gfmodel_mini2_selected = IntProperty(                              
         name="Selected Nested Mini File",
         default=0,
         min=0,

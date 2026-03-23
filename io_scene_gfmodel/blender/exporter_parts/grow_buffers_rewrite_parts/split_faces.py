@@ -178,13 +178,13 @@ def build_split_faces_for_submesh(
     bi_attr = next((a for a in sm.attributes if int(a.name) == 7), None)
     bw_attr = next((a for a in sm.attributes if int(a.name) == 8), None)
 
-
-
-
-
-
-
-
+                          
+                               
+                       
+     
+                                                                            
+                                                                        
+                                  
     has_full_skin = (
         bi_attr is not None
         and bw_attr is not None

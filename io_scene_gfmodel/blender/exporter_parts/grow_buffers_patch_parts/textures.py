@@ -20,7 +20,7 @@ def _rgba8_bytes_from_image(
     height: int,
     allow_scale: bool,
 ) -> bytes:
-    img.pixels[0]
+    img.pixels[0]                 
 
     w0, h0 = int(img.size[0]), int(img.size[1])
     if w0 <= 0 or h0 <= 0:

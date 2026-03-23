@@ -96,7 +96,7 @@ def _etc1_decompress(input_data: bytes, width: int, height: int, alpha: bool) ->
         table1 = (block_high >> 29) & 7
         table2 = (block_high >> 26) & 7
 
-        out = bytearray(4 * 4 * 4)
+        out = bytearray(4 * 4 * 4)                        
 
         if not flip:
             for y in range(4):
@@ -119,7 +119,7 @@ def _etc1_decompress(input_data: bytes, width: int, height: int, alpha: bool) ->
 
         return bytes(out)
 
-    out = bytearray(width * height * 4)
+    out = bytearray(width * height * 4)        
     inp = memoryview(input_data)
     in_off = 0
 
@@ -215,27 +215,27 @@ _SWIZZLE_LUT = (
 
 
 def _pica_decode_to_bgra(raw: bytes, width: int, height: int, fmt: int) -> bytes:
-
-
-
+                                       
+                                                                                                            
+                                                                                                    
     gf_to_pica = {
-        0x2: 3,
-        0x3: 1,
-        0x4: 0,
-        0x16: 4,
-        0x17: 2,
-        0x23: 5,
-        0x24: 6,
-        0x25: 7,
-        0x26: 8,
-        0x27: 9,
-        0x28: 10,
-        0x29: 11,
-        0x2A: 12,
-        0x2B: 13,
+        0x2: 3,          
+        0x3: 1,        
+        0x4: 0,         
+        0x16: 4,         
+        0x17: 2,            
+        0x23: 5,       
+        0x24: 6,         
+        0x25: 7,      
+        0x26: 8,      
+        0x27: 9,       
+        0x28: 10,      
+        0x29: 11,      
+        0x2A: 12,        
+        0x2B: 13,          
     }
-
-
+                                                                                  
+                                                                                           
     if int(fmt) in gf_to_pica:
         fmt = int(gf_to_pica[int(fmt)])
     elif int(fmt) not in range(14):
@@ -250,7 +250,7 @@ def _pica_decode_to_bgra(raw: bytes, width: int, height: int, fmt: int) -> bytes
     if inc == 0:
         inc = 1
 
-    out = bytearray(width * height * 4)
+    out = bytearray(width * height * 4)        
     inp = memoryview(raw)
     i_off = 0
 
@@ -283,12 +283,12 @@ def _pica_decode_to_bgra(raw: bytes, width: int, height: int, fmt: int) -> bytes
                 x = _SWIZZLE_LUT[px] & 7
                 y = (_SWIZZLE_LUT[px] - x) >> 3
                 o_off = (tx + x + ((height - 1 - (ty + y)) * width)) * 4
-                if fmt == 0:
+                if fmt == 0:                          
                     out[o_off + 0] = inp[i_off + 3]
                     out[o_off + 1] = inp[i_off + 2]
                     out[o_off + 2] = inp[i_off + 1]
                     out[o_off + 3] = inp[i_off + 0]
-                elif fmt == 1:
+                elif fmt == 1:        
                     out[o_off + 0] = inp[i_off + 2]
                     out[o_off + 1] = inp[i_off + 1]
                     out[o_off + 2] = inp[i_off + 0]
@@ -302,32 +302,32 @@ def _pica_decode_to_bgra(raw: bytes, width: int, height: int, fmt: int) -> bytes
                 elif fmt == 4:
                     b, g, r_, a = decode_rgba4(get_u16(i_off))
                     out[o_off : o_off + 4] = bytes((b, g, r_, a))
-                elif fmt == 5:
+                elif fmt == 5:       
                     l = int(inp[i_off + 1])
                     a = int(inp[i_off + 0])
                     out[o_off : o_off + 4] = bytes((l, l, l, a))
-                elif fmt == 6:
+                elif fmt == 6:         
                     out[o_off + 0] = inp[i_off + 1]
                     out[o_off + 1] = inp[i_off + 0]
                     out[o_off + 2] = 0
                     out[o_off + 3] = 0xFF
-                elif fmt == 7:
+                elif fmt == 7:      
                     l = int(inp[i_off])
                     out[o_off : o_off + 4] = bytes((l, l, l, 0xFF))
-                elif fmt == 8:
+                elif fmt == 8:      
                     a = int(inp[i_off])
                     out[o_off : o_off + 4] = bytes((0xFF, 0xFF, 0xFF, a))
-                elif fmt == 9:
+                elif fmt == 9:       
                     v = int(inp[i_off])
                     l = ((v >> 4) | (v & 0xF0)) & 0xFF
                     a = ((v << 4) | (v & 0x0F)) & 0xFF
                     out[o_off : o_off + 4] = bytes((l, l, l, a))
-                elif fmt == 10:
+                elif fmt == 10:      
                     v = int(inp[i_off >> 1])
                     l4 = (v >> ((i_off & 1) << 2)) & 0xF
                     l = (l4 << 4) | l4
                     out[o_off : o_off + 4] = bytes((l, l, l, 0xFF))
-                elif fmt == 11:
+                elif fmt == 11:      
                     v = int(inp[i_off >> 1])
                     a4 = (v >> ((i_off & 1) << 2)) & 0xF
                     a = (a4 << 4) | a4
@@ -340,7 +340,7 @@ def _pica_decode_to_bgra(raw: bytes, width: int, height: int, fmt: int) -> bytes
 
 
 def _pica_decode_bitmap_to_bgra(raw: bytes, width: int, height: int, fmt: int) -> bytes:
-
+                                                                         
     buf = _pica_decode_to_bgra(raw, width, height, fmt)
     stride = width * 4
     out = bytearray(len(buf))
@@ -512,7 +512,7 @@ def _decode_texenv_scale(p: int) -> Dict[str, object]:
 
 
 def _decode_texenv_update_buffer(p: int) -> Dict[int, Dict[str, bool]]:
-
+                                                    
     return {
         1: {
             "update_color_buffer": (p & 0x0100) != 0,

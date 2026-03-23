@@ -23,7 +23,7 @@ def _is_pack(data: bytes) -> bool:
 
 
 def _is_raw_model(data: bytes) -> bool:
-
+                                        
     return len(data) >= 4 and struct.unpack_from("<I", data, 0)[0] == 0x15122117
 
 
@@ -43,11 +43,11 @@ def _container_has_pack(data: bytes) -> bool:
 
 
 def _is_exportable_blob(data: bytes) -> bool:
-
-
-
-
-
+                             
+                         
+                   
+                                   
+                                                        
     if _is_pack(data) or _is_raw_model(data):
         return True
     try:

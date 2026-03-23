@@ -25,13 +25,13 @@ def _find_pack_index_in_cm(cm_bytes: bytes) -> int:
 
 @dataclass(frozen=True)
 class PackWrapper:
-    kind: str
+    kind: str               
     cm_pack_index: int = -1
 
-
+                                                  
     cm_bytes: bytes = b""
 
-
+                                                                                                
     cp_bytes: bytes = b""
 
 

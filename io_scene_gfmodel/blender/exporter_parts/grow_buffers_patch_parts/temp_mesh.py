@@ -41,7 +41,7 @@ def _build_temp_mesh_object_for_slot(
     except Exception:
         uv_src = None
 
-
+                                             
     for a, b, c, la, lb, lc in tri_verts:
         for vi in (int(a), int(b), int(c)):
             if vi not in remap:
@@ -67,7 +67,7 @@ def _build_temp_mesh_object_for_slot(
             face_uvs.append(((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)))
 
     tmp_mesh.from_pydata(verts_world, [], faces)
-
+                                                                                            
     if uv_src is not None and face_uvs:
         try:
             uv_dst = tmp_mesh.uv_layers.new(name=str(getattr(uv_src, "name", "UVMap")))
@@ -93,8 +93,8 @@ def _build_temp_mesh_object_for_slot(
 
     tmp_obj = bpy.data.objects.new(name + "_obj", tmp_mesh)
 
-
-
+                                 
+                                         
     vg_names: Dict[int, str] = {}
     try:
         for i, vg in enumerate(src_obj.vertex_groups):

@@ -28,7 +28,7 @@ def _load_any(
     motions: List[_GFMotion] = []
     shaders: List[_GFShader] = []
 
-
+                                                                                          
     if looks_like_binlinker(data):
         try:
             bl = parse_binlinker(data)
@@ -42,13 +42,13 @@ def _load_any(
                 textures.extend(t)
                 motions.extend(a)
                 shaders.extend(s)
-
-
-
+                                                                                         
+                                                                                     
+                                                                                   
             if models or textures or motions or shaders:
                 return models, textures, motions, shaders
         except Exception:
-
+                                               
             pass
 
 

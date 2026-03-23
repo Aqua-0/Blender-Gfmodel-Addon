@@ -253,13 +253,13 @@ def maybe_export_inplace_or_grow(
                         raise ValueError(
                             "Robust patch mode currently requires UV Strategy=DUPLICATE"
                         )
-
-
+                                                                                                
+                                                                                    
                     objs = None
                     try:
                         ucs = getattr(active_obj, "users_collection", None)
                         if ucs:
-
+                                                                                                 
                             objs = list(ucs[0].all_objects)
                     except Exception:
                         objs = None

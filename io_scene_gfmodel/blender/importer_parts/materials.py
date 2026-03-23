@@ -72,8 +72,8 @@ def _tex_is_non_color(name: str) -> bool:
 
 
 def _map_wrap_mode_to_blender(wrap: int) -> str:
-
-
+                                              
+                                                                     
     w = int(wrap)
     if w == 2:
         return 'REPEAT'
@@ -85,8 +85,8 @@ def _map_wrap_mode_to_blender(wrap: int) -> str:
 
 
 def _is_linear_filter(mag: int, minf: int) -> bool:
-
-
+                              
+                                                                          
     m = int(mag)
     mi = int(minf)
     return (m == 1) or (mi >= 3)
@@ -99,7 +99,7 @@ def _shader_key_variants(name: str) -> list[str]:
     if not raw:
         return []
     low = raw.lower()
-
+                                    
     low2 = low.replace('\\', '/')
     base = low2.rsplit('/', 1)[-1]
     keys = {raw, low, base}
@@ -262,7 +262,7 @@ def _make_material(
             if tnode is not None:
                 tex_nodes[int(tu.unit_index)] = tnode
 
-
+                                                                                                            
     sh = _shader_lookup(shader_by_name, mat_def.frag_shader, mat_def.shader_name, mat_def.vtx_shader)
 
     def const_rgba(stage) -> tuple[float, float, float, float]:
@@ -353,7 +353,7 @@ def _make_material(
                 nt.links.new(a, add.inputs[0]); nt.links.new(b, add.inputs[1])
                 return add.outputs['Vector']
             if mode == 4:
-
+                                     
                 inv = nt.nodes.new('ShaderNodeVectorMath'); inv.operation='SUBTRACT'; inv.location=(x-150,y-60)
                 one = node_rgb((1.0,1.0,1.0), x-350, y-60, 'One')
                 nt.links.new(one, inv.inputs[0]); nt.links.new(c, inv.inputs[1])
@@ -434,7 +434,7 @@ def _make_material(
             out_c = combine_color(col_mode, t0c, t1c, t2c, -60, y0 - 60)
             out_a = combine_alpha(alp_mode, t0a, t1a, t2a, -60, y0 - 260)
 
-
+                                                                   
             col_scale = (sc >> 0) & 0x3
             alp_scale = (sc >> 16) & 0x3
             if col_scale in (1,2):
@@ -481,4 +481,5 @@ def _make_material(
 
     _set_gfmodel_material_props(mat, mat_def, shader_by_name)
     return mat
+
 

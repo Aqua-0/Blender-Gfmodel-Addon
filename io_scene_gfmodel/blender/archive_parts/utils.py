@@ -142,7 +142,7 @@ def _classify_import_type(data: bytes) -> str:
             return "MODEL"
         if m == 0x15041213:
             return "TEXTURE"
-
+                                                     
     try:
         from ...core.binlinker import looks_like_binlinker
 
@@ -235,5 +235,6 @@ def _gather_a094_group_extras(
         except Exception:
             continue
     return int(group_start), out
+
 
 

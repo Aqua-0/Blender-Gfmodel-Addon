@@ -196,3 +196,4 @@ def _read_vertices(
 
     return pos, nrm, uv0, col, weights
 
+

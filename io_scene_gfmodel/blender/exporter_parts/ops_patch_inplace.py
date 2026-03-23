@@ -417,3 +417,4 @@ class GFModel_OT_patch_current_scene_verts_topology_tris_in_place(bpy.types.Oper
         return {"FINISHED"}
 
 
+

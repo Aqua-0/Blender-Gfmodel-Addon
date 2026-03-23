@@ -37,7 +37,7 @@ def _patch_pack_uv0_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data
+        mesh: bpy.types.Mesh = obj.data                            
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
                 f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -49,8 +49,8 @@ def _patch_pack_uv0_in_place(
         if uv_layer is None:
             continue
 
-
-
+                                                                                             
+                                                      
         uv_by_v: List[Optional[Tuple[float, float]]] = [None] * int(len(mesh.vertices))
         try:
             for poly in mesh.polygons:
@@ -92,4 +92,5 @@ def _patch_pack_uv0_in_place(
                 changed += 1
 
     return bytes(out), int(changed)
+
 

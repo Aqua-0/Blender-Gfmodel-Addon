@@ -82,10 +82,10 @@ def patch_container(
     old_seg = blob[start:end]
     if rep == old_seg:
         return bytes(blob)
-
-
-
-
+                                                                                 
+                                                                                  
+                                                                                  
+                                                                
     if len(rep) == len(old_seg):
         out = bytearray(blob)
         out[start : start + len(rep)] = rep

@@ -31,7 +31,7 @@ def _patch_submesh_positions_in_place(
     gf_from_blender: Matrix,
     global_scale: float,
 ) -> Tuple[Vector, Vector]:
-    mesh: bpy.types.Mesh = obj.data
+    mesh: bpy.types.Mesh = obj.data                            
     if int(len(mesh.vertices)) != int(sm.vertex_count):
         raise ValueError(
             f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -98,7 +98,7 @@ def _patch_pack_positions_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data
+        mesh: bpy.types.Mesh = obj.data                            
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
                 f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -114,8 +114,8 @@ def _patch_pack_positions_in_place(
 
         comp_size = len(_pack_attr_value(int(pos_attr.fmt), float(pos_attr.scale), 0.0))
         stride = int(sm.vertex_stride)
-
-
+                                                                                             
+                                                                          
         base = int(getattr(sm, "raw_buffer_off", 0))
         if base <= 0:
             raise ValueError("Missing/invalid raw_buffer_off for submesh")
@@ -153,13 +153,13 @@ def _patch_pack_normals_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data
+        mesh: bpy.types.Mesh = obj.data                            
 
         try:
             if hasattr(mesh, "calc_normals_split"):
-                mesh.calc_normals_split()
+                mesh.calc_normals_split()                              
             elif hasattr(mesh, "calc_normals"):
-                mesh.calc_normals()
+                mesh.calc_normals()                              
         except Exception:
             pass
 
@@ -171,7 +171,7 @@ def _patch_pack_normals_in_place(
         offs = _vertex_attr_offsets(sm)
         nrm_off = offs.get(1)
         if nrm_off is None:
-
+                                                                
             continue
         nrm_attr = next((a for a in sm.attributes if int(a.name) == 1), None)
         if nrm_attr is None or int(nrm_attr.elements) < 3:
@@ -279,4 +279,5 @@ def _patch_pack_pos_nrm_uv0_skin_in_place(
         int(skin_changed),
         int(skin_fallback),
     )
+
 

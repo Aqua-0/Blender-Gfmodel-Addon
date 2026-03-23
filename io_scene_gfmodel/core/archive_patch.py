@@ -52,15 +52,15 @@ def patch_entry_leaf_bytes(
     leaf_raw = cont2.extract(outer_dec, int(nested_index))
 
     leaf_was_lz11 = looks_like_lz11(leaf_raw)
-
-
-
+                                                                                                
+                                                                                          
+                                                                             
     if leaf_was_lz11:
         if looks_like_lz11(replacement_leaf_bytes):
             leaf_new_raw = bytes(replacement_leaf_bytes)
         else:
-
-
+                                                                                                 
+                                                                                                
             try:
                 if bytes(decompress(leaf_raw)) == bytes(replacement_leaf_bytes):
                     leaf_new_raw = bytes(leaf_raw)
@@ -117,8 +117,8 @@ def patch_archive_leaf_file(
         nested_index=int(ctx.nested_index),
         replacement_leaf_bytes=replacement_leaf_bytes,
     )
-
-
+                                                                                         
+                                                                                            
     if bytes(new_entry) == bytes(entry):
         import shutil
 

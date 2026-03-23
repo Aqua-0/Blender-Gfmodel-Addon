@@ -116,7 +116,7 @@ class GFModel_UL_archive_entries(bpy.types.UIList):
         ql = query.lower()
 
         want = _parse_search_int(query) if query else None
-
+                                        
         use_names = bool(getattr(context.scene, "gfmodel_archive_show_species_names", False)) or _looks_like_a094_context(context)
 
         for it in items:
@@ -220,4 +220,5 @@ class GFModel_UL_container_entries(bpy.types.UIList):
                 show = query in s or query in f"{int(getattr(it, 'index', 0)):04d}"
             flt_flags.append(self.bitflag_filter_item if show else 0)
         return flt_flags, flt_neworder
+
 

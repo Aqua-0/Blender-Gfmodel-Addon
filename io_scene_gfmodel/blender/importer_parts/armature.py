@@ -106,7 +106,7 @@ def _build_armature(
         except Exception:
             pass
 
-
+                                                                 
     try:
         for b in model.skeleton:
             db = arm_data.bones.get(b.name)
@@ -127,4 +127,5 @@ def _build_armature(
         except Exception:
             pass
     return arm_obj
+
 

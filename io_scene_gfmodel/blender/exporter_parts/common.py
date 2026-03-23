@@ -67,7 +67,7 @@ def pica_iter_cmds_with_param_indices(
         extra = int((cmd >> 20) & 0x7FF)
         consecutive = (cmd >> 31) != 0
         if consecutive:
-
+                                                           
             for j in range(extra + 1):
                 yield (int(reg + j), int(start_param_index + j), [int(param0)])
                 if j < extra:

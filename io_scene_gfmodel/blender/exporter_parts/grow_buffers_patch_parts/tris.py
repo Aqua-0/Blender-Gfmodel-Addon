@@ -85,7 +85,7 @@ def _collect_tris_for_material(
             obj.update_from_editmode()
     except Exception:
         pass
-    mesh: bpy.types.Mesh = obj.data
+    mesh: bpy.types.Mesh = obj.data                            
     try:
         mesh.calc_loop_triangles()
     except Exception:
@@ -98,7 +98,7 @@ def _collect_tris_for_material(
         return s
 
     target = base(str(material_name))
-
+                                                                                     
     out: List[Tuple[int, int, int, int, int, int]] = []
     for tri in getattr(mesh, "loop_triangles", []) or []:
         try:
@@ -130,7 +130,7 @@ def _collect_tris_all(
             obj.update_from_editmode()
     except Exception:
         pass
-    mesh: bpy.types.Mesh = obj.data
+    mesh: bpy.types.Mesh = obj.data                            
     try:
         mesh.calc_loop_triangles()
     except Exception:

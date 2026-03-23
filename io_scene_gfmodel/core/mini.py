@@ -51,11 +51,11 @@ def parse_mini(blob: bytes) -> _Mini:
     length = _u32le(b, 4 + int(count) * 4)
     if int(length) <= 0:
         raise ValueError("mini length invalid")
-
+                                                                                                            
     if int(length) > len(b):
         raise ValueError("mini length mismatch")
     offsets.append(int(length))
-
+                                                               
     prev = 0
     for off in offsets:
         if off < prev or off > int(length):
@@ -84,7 +84,7 @@ def patch_mini(
 
     rep = bytes(replacement)
 
-
+                                             
     start = int(mini.offsets[index])
     end = int(mini.offsets[index + 1])
     if start < 0 or end < start or end > len(blob):
@@ -97,8 +97,8 @@ def patch_mini(
         out[start : start + len(rep)] = rep
         return bytes(out)
 
-
-
+                                                                 
+                                                                      
     segments: List[bytes] = []
     for i in range(mini.count):
         s = int(mini.offsets[i])
@@ -107,7 +107,7 @@ def patch_mini(
     stored_len = int(_align_up(len(rep), int(align)))
     segments[index] = rep + (b"\x00" * (stored_len - len(rep)))
 
-
+                                                                         
     count = mini.count
     header_end = 4 + count * 4 + 4
     first_off = int(_align_up(header_end, int(align)))
@@ -140,7 +140,7 @@ def patch_mini(
         out += seg
 
     if len(out) != length:
-
+                                                      
         if len(out) < length:
             out += b"\x00" * (length - len(out))
         else:

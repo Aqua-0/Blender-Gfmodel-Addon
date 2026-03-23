@@ -97,15 +97,15 @@ def _import_model_to_blender(
     except Exception:
         pass
 
-
-
+                                                                                           
+                                                                                    
     try:
         plan_json = str(
             ctx.scene.get("gfmodel_pending_patch_plan_json", "") or ""
         ).strip()
         if plan_json:
             coll["gfmodel_patch_plan_json"] = plan_json
-
+                                                                                              
             try:
                 del ctx.scene["gfmodel_pending_patch_plan_json"]
             except Exception:
@@ -695,6 +695,7 @@ def _import_gfmodel_bytes(
         source_path_real = str(source_path)
 
     models, textures, motions, shaders = _load_any(data)
+    from .import_loaded import _import_gfmodel_loaded
     return _import_gfmodel_loaded(
         context,
         models=models,
@@ -771,6 +772,7 @@ def _import_gfmodel_bytes_with_extras(
         motions.extend(a2)
         shaders.extend(s2)
 
+    from .import_loaded import _import_gfmodel_loaded
     return _import_gfmodel_loaded(
         context,
         models=models,
@@ -786,6 +788,7 @@ def _import_gfmodel_bytes_with_extras(
         axis_forward=axis_forward,
         axis_up=axis_up,
     )
+
 
 
 

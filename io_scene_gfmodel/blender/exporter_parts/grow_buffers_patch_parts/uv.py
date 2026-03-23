@@ -72,7 +72,7 @@ def _apply_uv_strategy_to_mesh(
                         return False
                 return True
 
-
+                                                                                           
             face_seen: Dict[int, None] = {}
             islands: List[List[bmesh.types.BMFace]] = []
             for f in bm.faces:
@@ -105,7 +105,7 @@ def _apply_uv_strategy_to_mesh(
                     for f in isl:
                         face_to_island[int(f.index)] = int(ii)
 
-
+                                                  
                 seam_edges: List[bmesh.types.BMEdge] = []
                 for e in bm.edges:
                     if not e.is_manifold or len(e.link_faces) != 2:
@@ -128,7 +128,7 @@ def _apply_uv_strategy_to_mesh(
                             seam_edges.append(e)
                             break
 
-
+                                                               
                 adj: Dict[int, List[Tuple[int, Tuple[float, float]]]] = {
                     int(i): [] for i in range(len(islands))
                 }
