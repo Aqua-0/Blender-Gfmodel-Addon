@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import os
@@ -103,6 +104,7 @@ def _sanity_check_breadcrumb(context: bpy.types.Context, breadcrumb: str) -> Non
 
 
 def _payload_matches_expected(payload: bytes, expected: bytes) -> bool:
+
     p = bytes(payload)
     e = bytes(expected)
     if p == e:
@@ -186,6 +188,7 @@ def _patch_via_legacy_container2(context: bpy.types.Context, out_bytes: bytes) -
 
 
 def patch_into_source_archive(context: bpy.types.Context, out_bytes: bytes) -> str:
+
     plan_json = _resolve_patch_plan_json(context)
     if not plan_json:
 

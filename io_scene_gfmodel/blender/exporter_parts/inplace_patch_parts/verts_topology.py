@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -33,6 +34,7 @@ def _patch_pack_verts_topology_tris_in_place(
     global_scale: float,
     skeleton_names: List[str],
 ) -> Tuple[bytes, int]:
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -42,7 +44,7 @@ def _patch_pack_verts_topology_tris_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
 
         if int(sm.primitive_mode) != 0:
             raise ValueError(
@@ -68,7 +70,7 @@ def _patch_pack_verts_topology_tris_in_place(
                 f"New vertex count exceeds allocated capacity for submesh {sm.name!r}: new={new_vcount} cap={cap_verts} (vtx_len={vtx_len}, stride={stride})"
             )
 
-                                                                   
+
         uv_layer = None
         if getattr(mesh, "uv_layers", None):
             uv_layer = mesh.uv_layers.active or mesh.uv_layers[0]
@@ -86,7 +88,7 @@ def _patch_pack_verts_topology_tris_in_place(
             except Exception:
                 pass
 
-                                                             
+
         col_by_v: List[Tuple[float, float, float, float]] = [
             (1.0, 1.0, 1.0, 1.0)
         ] * new_vcount
@@ -125,7 +127,7 @@ def _patch_pack_verts_topology_tris_in_place(
         bi_attr = next((a for a in sm.attributes if int(a.name) == 7), None)
         bw_attr = next((a for a in sm.attributes if int(a.name) == 8), None)
 
-                                                                                      
+
         weights_by_v: List[List[Tuple[int, float]]] = [[] for _ in range(new_vcount)]
         pal_count = int(getattr(sm, "bone_indices_count", 0) or 0)
         if bi_attr is not None or bw_attr is not None:
@@ -162,7 +164,7 @@ def _patch_pack_verts_topology_tris_in_place(
             raise ValueError("Vertex buffer range out of file bounds")
         templ_bytes = bytes(out[base_vtx : base_vtx + stride])
 
-                                                                                              
+
         for i, v in enumerate(mesh.vertices):
             src = (
                 bytes(out[base_vtx + i * stride : base_vtx + (i + 1) * stride])
@@ -327,9 +329,9 @@ def _patch_pack_verts_topology_tris_in_place(
             )
         struct.pack_into("<i", out, vtx_count_off, int(new_vcount))
 
-                                      
+
         try:
-            mesh.calc_loop_triangles()                              
+            mesh.calc_loop_triangles()
         except Exception:
             pass
         tris = getattr(mesh, "loop_triangles", None)

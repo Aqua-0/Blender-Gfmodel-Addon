@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -94,8 +95,8 @@ class _GFMaterial:
     unk_render: int
     pica_commands: List[int]
     pica_regs: Dict[int, int]
-                                                                                              
-                                                                  
+
+
     raw_blob: Optional[bytes] = None
 
 
@@ -120,7 +121,7 @@ class _GFShader:
 
 
 def _jsonify_pica_regs(regs: Dict[int, int]) -> Dict[str, int]:
-                                                                   
+
     return {f"0x{k:04X}": int(v) for k, v in sorted(regs.items())}
 
 
@@ -165,34 +166,34 @@ class _GFSubMesh:
     enable_cmds: List[int]
     disable_cmds: List[int]
     index_cmds: List[int]
-                                                                                          
-                                                                                        
-                             
+
+
+
     index_data_len: int = 0
     index_pad_bytes: bytes = b""
-                                                                                             
-                                                                   
+
+
     index_buffer_off: int = 0
-                                           
+
     index_elem_size: int = 0
-                                                                                                     
-                                                                                         
-                                                                                         
+
+
+
     index_count_off: int = 0
     index_cmds_off: int = 0
     index_cmds_len_u32: int = 0
-                                                                              
+
     vertex_count_off: int = 0
-                                                                                                   
+
     vertex_data_len_off: int = 0
     index_data_len_off: int = 0
-                                                                                   
+
     mesh_section_off: int = 0
     mesh_section_len_off: int = 0
-                                                                                             
-                                                                                              
-                                                                                         
-                                           
+
+
+
+
     raw_buffer_off: int = 0
 
 

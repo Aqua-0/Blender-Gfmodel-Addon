@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import math
@@ -27,9 +28,10 @@ def _encode_key_list(
     force_keys: bool = True,
     eps: float = 1e-6,
 ) -> Tuple[int, bytes]:
+
     n = int(frames_count)
     if n <= 0:
-                                          
+
         return 0, b''
 
     if not values:
@@ -44,23 +46,23 @@ def _encode_key_list(
     if all(abs(float(v) - v0) <= float(eps) for v in values):
         return 3, struct.pack('<f', v0)
 
-                                                  
+
     kf_count = n
     out = bytearray()
     out += struct.pack('<I', int(kf_count))
 
-                   
+
     if n > 0xFF:
         for fr in range(kf_count):
             out += struct.pack('<H', int(fr))
     else:
         out += bytes([int(fr) & 0xFF for fr in range(kf_count)])
 
-                
+
     while (len(out) & 3) != 0:
         out += b'\x00'
 
-                                                                                           
+
     for i in range(kf_count):
         out += struct.pack('<ff', float(values[i]), 0.0)
 

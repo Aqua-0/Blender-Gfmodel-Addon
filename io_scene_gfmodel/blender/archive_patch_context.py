@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 from typing import List, Optional, Tuple
@@ -29,6 +30,7 @@ def make_archive_entry_plan_and_payload(
     entry_bytes: bytes,
     pre_steps: Optional[List[dict]] = None,
 ) -> Tuple[PatchPlan, bytes]:
+
     pre = list(pre_steps or [])
     sel = bytes(entry_bytes)
     for st in pre:

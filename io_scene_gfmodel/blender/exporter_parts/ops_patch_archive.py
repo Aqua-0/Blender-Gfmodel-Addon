@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import json
@@ -17,7 +18,7 @@ class GFModel_OT_patch_current_scene_to_archive(bpy.types.Operator):
         import tempfile
         import time
 
-                                                                                            
+
         tmp_root = ""
         try:
             tmp_root = str(getattr(bpy.app, "tempdir", "") or "").strip()
@@ -30,7 +31,7 @@ class GFModel_OT_patch_current_scene_to_archive(bpy.types.Operator):
             tmp_root, f"gfmodel_export_{int(time.time() * 1000)}.bin"
         )
 
-                                                                                    
+
         kwargs = {
             "filepath": tmp_path,
             "patch_into_source_archive": True,

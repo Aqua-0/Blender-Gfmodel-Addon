@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import json
@@ -436,8 +437,8 @@ class GFModel_OT_patch_current_scene_grow_buffers_robust(bpy.types.Operator):
         )
 
 
-                                                                                        
-                                                                                       
+
+
         kwargs = {
             "filepath": tmp_path,
             "patch_into_source_archive": True,
@@ -447,7 +448,7 @@ class GFModel_OT_patch_current_scene_grow_buffers_robust(bpy.types.Operator):
             "grow_buffers_uv_strategy": "DUPLICATE",
             "grow_buffers_rebuild_mode": "REBUILD_SPLIT",
             "grow_buffers_patch_all_tagged_submeshes": True,
-                                                                                                  
+
             "grow_buffers_material_sources_json": "",
         }
 
@@ -491,8 +492,8 @@ class GFModel_OT_patch_current_scene_grow_buffers_robust_autoroute(bpy.types.Ope
         )
 
 
-                                                                                             
-                                                                                                
+
+
         kwargs = {
             "filepath": tmp_path,
             "patch_into_source_archive": True,
@@ -500,10 +501,14 @@ class GFModel_OT_patch_current_scene_grow_buffers_robust_autoroute(bpy.types.Ope
             "export_meshes": True,
             "mesh_export_mode": "GROW_BUFFERS_TRIS",
             "grow_buffers_uv_strategy": "DUPLICATE",
-            "grow_buffers_rebuild_mode": "CLAMP_ROUTE",
+            "grow_buffers_rebuild_mode": ("REBUILD_PALETTE" if bool(getattr(context.scene, "gfmodel_patch_palette_append_only", False)) else "CLAMP_ROUTE"),
+            "grow_buffers_expand_bone_palettes": True,
+            "grow_buffers_split_across_existing_slots": True,
             "grow_buffers_patch_all_tagged_submeshes": True,
             "grow_buffers_auto_route_new_meshes": True,
-                                                                               
+            "grow_buffers_palette_append_only": bool(getattr(context.scene, 'gfmodel_patch_palette_append_only', False)),
+            "grow_buffers_palette_prune_unused": bool(getattr(context.scene, "gfmodel_patch_prune_unused_palette", False)),
+
             "grow_buffers_material_sources_json": "",
         }
 

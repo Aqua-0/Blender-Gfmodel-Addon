@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,7 @@ def _is_pack(data: bytes) -> bool:
 
 
 def _is_raw_model(data: bytes) -> bool:
-                                        
+
     return len(data) >= 4 and struct.unpack_from("<I", data, 0)[0] == 0x15122117
 
 
@@ -43,11 +44,12 @@ def _container_has_pack(data: bytes) -> bool:
 
 
 def _is_exportable_blob(data: bytes) -> bool:
-                             
-                         
-                   
-                                   
-                                                        
+
+
+
+
+
+
     if _is_pack(data) or _is_raw_model(data):
         return True
     try:
@@ -124,6 +126,7 @@ def extract_via_steps(data: bytes, steps: Sequence[Step]) -> bytes:
 
 def patch_via_steps(data: bytes, steps: Sequence[Step], replacement: bytes) -> bytes:
 
+
     def _patch(cur: bytes, i: int) -> bytes:
         if i >= len(steps):
             return bytes(replacement)
@@ -176,6 +179,7 @@ def find_exportable_blob(
     *,
     max_depth: int = 32,
 ) -> Tuple[bytes, List[Step]]:
+
 
     def _walk(cur: bytes, depth: int) -> Optional[Tuple[bytes, List[Step]]]:
         if depth > int(max_depth):

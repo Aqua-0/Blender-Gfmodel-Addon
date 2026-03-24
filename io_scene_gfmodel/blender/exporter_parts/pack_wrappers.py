@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -25,17 +26,18 @@ def _find_pack_index_in_cm(cm_bytes: bytes) -> int:
 
 @dataclass(frozen=True)
 class PackWrapper:
-    kind: str               
+    kind: str
     cm_pack_index: int = -1
 
-                                                  
+
     cm_bytes: bytes = b""
 
-                                                                                                
+
     cp_bytes: bytes = b""
 
 
 def unwrap_pack(src_data: bytes) -> tuple[bytes, PackWrapper]:
+
     if _is_pack(src_data):
         return bytes(src_data), PackWrapper(kind="RAW")
 
@@ -67,6 +69,7 @@ def unwrap_pack(src_data: bytes) -> tuple[bytes, PackWrapper]:
 
 
 def rewrap_pack(wrapper: PackWrapper, new_pack: bytes) -> bytes:
+
     if wrapper.kind == "RAW":
         return bytes(new_pack)
     if wrapper.kind == "CM":

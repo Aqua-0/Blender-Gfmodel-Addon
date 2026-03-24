@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import json
@@ -248,18 +249,33 @@ def maybe_export_inplace_or_grow(
                 ):
                     clamp_conflict_mode = "CLAMP_BY_WEIGHT"
 
+                expand_palettes = bool(
+                    getattr(self, "grow_buffers_expand_bone_palettes", False)
+                )
+                split_across_existing = bool(
+                    getattr(self, "grow_buffers_split_across_existing_slots", False)
+                )
+
+                palette_append_only = bool(
+                    getattr(self, "grow_buffers_palette_append_only", False)
+                )
+
+                palette_prune_unused = bool(
+                    getattr(self, "grow_buffers_palette_prune_unused", False)
+                )
+
                 if patch_all:
                     if str(uv_strategy) != "DUPLICATE":
                         raise ValueError(
                             "Robust patch mode currently requires UV Strategy=DUPLICATE"
                         )
-                                                                                                
-                                                                                    
+
+
                     objs = None
                     try:
                         ucs = getattr(active_obj, "users_collection", None)
                         if ucs:
-                                                                                                 
+
                             objs = list(ucs[0].all_objects)
                     except Exception:
                         objs = None
@@ -301,9 +317,9 @@ def maybe_export_inplace_or_grow(
                     tmp_objects: List[bpy.types.Object] = []
                     try:
                         if auto_route_new:
-                            if str(rebuild_mode) != "CLAMP_ROUTE":
+                            if str(rebuild_mode) != "CLAMP_ROUTE" and not palette_append_only:
                                 raise ValueError(
-                                    "Auto-route new meshes currently requires Rebuild Mode=Clamp/Route (No Rebuild)"
+                                    "Auto-route new meshes currently requires Rebuild Mode=Clamp/Route (No Rebuild), unless Palette Append Only is enabled"
                                 )
 
                             skel_set = set(str(n) for n in (skeleton_names or []))
@@ -396,6 +412,8 @@ def maybe_export_inplace_or_grow(
                                         routing_strategy=str(self.grow_buffers_routing_strategy),
                                         weight_cutoff=float(getattr(self, "grow_buffers_weight_cutoff", 0.0)),
                                         conflict_mode=str(clamp_conflict_mode),
+                                        allow_palette_expand=bool(expand_palettes),
+                                        split_across_slots=bool(split_across_existing),
                                     )
                                     total_dropped += int(stats.get("dropped", 0) or 0)
                                     total_clamped += int(stats.get("clamped", 0) or 0)
@@ -462,6 +480,8 @@ def maybe_export_inplace_or_grow(
                                 disallow_new_mesh_sections=bool(disallow_new_mesh_sections),
                                 allow_palette_rebuild=bool(allow_palette_rebuild),
                                 allow_palette_split=bool(allow_palette_split),
+                                palette_append_only=bool(palette_append_only),
+                                palette_prune_unused=bool(palette_prune_unused),
                             )
                             changed = int(len(tagged_all))
                         else:
@@ -475,6 +495,8 @@ def maybe_export_inplace_or_grow(
                                 disallow_new_mesh_sections=bool(disallow_new_mesh_sections),
                                 allow_palette_rebuild=bool(allow_palette_rebuild),
                                 allow_palette_split=bool(allow_palette_split),
+                                palette_append_only=bool(palette_append_only),
+                                palette_prune_unused=bool(palette_prune_unused),
                             )
                     finally:
                         for o in tmp_objects:
@@ -675,6 +697,8 @@ def maybe_export_inplace_or_grow(
                                     ),
                                     allow_palette_rebuild=bool(allow_palette_rebuild),
                                     allow_palette_split=bool(allow_palette_split),
+                                palette_append_only=bool(palette_append_only),
+                                palette_prune_unused=bool(palette_prune_unused),
                                 )
                                 changed = int(len(tagged_multi))
                             else:
@@ -690,6 +714,8 @@ def maybe_export_inplace_or_grow(
                                     ),
                                     allow_palette_rebuild=bool(allow_palette_rebuild),
                                     allow_palette_split=bool(allow_palette_split),
+                                palette_append_only=bool(palette_append_only),
+                                palette_prune_unused=bool(palette_prune_unused),
                                 )
                         if total_dropped > 0:
                             self.report(
@@ -753,6 +779,8 @@ def maybe_export_inplace_or_grow(
                                 disallow_new_mesh_sections=bool(disallow_new_mesh_sections),
                                 allow_palette_rebuild=bool(allow_palette_rebuild),
                                 allow_palette_split=bool(allow_palette_split),
+                                palette_append_only=bool(palette_append_only),
+                                palette_prune_unused=bool(palette_prune_unused),
                             )
                             changed = int(len(tagged_active))
                         else:
@@ -766,6 +794,8 @@ def maybe_export_inplace_or_grow(
                                 disallow_new_mesh_sections=bool(disallow_new_mesh_sections),
                                 allow_palette_rebuild=bool(allow_palette_rebuild),
                                 allow_palette_split=bool(allow_palette_split),
+                                palette_append_only=bool(palette_append_only),
+                                palette_prune_unused=bool(palette_prune_unused),
                             )
                     finally:
                         for o in tmp_objects:

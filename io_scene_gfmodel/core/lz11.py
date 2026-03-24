@@ -1,10 +1,17 @@
 
+
 from __future__ import annotations
 
 import struct
+import zlib
+from collections import OrderedDict
 
 
 _MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024
+
+_DECOMP_CACHE_MAX_ENTRIES = 8
+_DECOMP_CACHE_MAX_DECODED = 32 * 1024 * 1024
+_DECOMP_CACHE: 'OrderedDict[tuple[int,int], bytes]' = OrderedDict()
 
 
 def looks_like_lz11(data: bytes) -> bool:
@@ -29,6 +36,19 @@ def decompress(data: bytes) -> bytes:
     decoded_len = hdr >> 8
     if decoded_len <= 0 or decoded_len > int(_MAX_DECOMPRESSED_BYTES):
         return data
+    key = None
+    try:
+        key = (len(data), int(zlib.crc32(data)) & 0xFFFFFFFF)
+    except Exception:
+        key = None
+    if key is not None:
+        cached = _DECOMP_CACHE.get(key)
+        if cached is not None:
+            try:
+                _DECOMP_CACHE.move_to_end(key)
+            except Exception:
+                pass
+            return cached
     inp = memoryview(data)[4:]
     in_off = 0
     out = bytearray(decoded_len)
@@ -73,16 +93,37 @@ def decompress(data: bytes) -> bytes:
             length = (byte1 >> 4) + 1
 
         position += 1
-        for _ in range(length):
-            out[out_off] = out[out_off - position]
-            out_off += 1
-            if out_off >= decoded_len:
-                break
+        if position <= 0 or position > out_off:
+            return bytes(out[:out_off]) if out_off < decoded_len else bytes(out)
 
-    return bytes(out)
+        remaining = int(length)
+        while remaining > 0 and out_off < decoded_len:
+            chunk = position if remaining > position else remaining
+            end = out_off + chunk
+            if end > decoded_len:
+                end = decoded_len
+                chunk = end - out_off
+            out[out_off:end] = out[out_off - position : out_off - position + chunk]
+            out_off = end
+            remaining -= chunk
+
+    res = bytes(out)
+    if key is not None and int(decoded_len) <= int(_DECOMP_CACHE_MAX_DECODED):
+        _DECOMP_CACHE[key] = res
+        try:
+            _DECOMP_CACHE.move_to_end(key)
+        except Exception:
+            pass
+        while len(_DECOMP_CACHE) > int(_DECOMP_CACHE_MAX_ENTRIES):
+            try:
+                _DECOMP_CACHE.popitem(last=False)
+            except Exception:
+                break
+    return res
 
 
 def compress(data: bytes, *, force_literal_prefix: int = 8) -> bytes:
+
     raw = bytes(data)
     n = len(raw)
     if n <= 0:

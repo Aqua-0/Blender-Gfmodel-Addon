@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import copy
@@ -22,7 +23,10 @@ def _patch_pack_grow_buffers_tris(
     disallow_new_mesh_sections: bool = False,
     allow_palette_rebuild: bool = True,
     allow_palette_split: bool = True,
+    palette_append_only: bool = False,
+    palette_prune_unused: bool = False,
 ) -> Tuple[bytes, int]:
+
     if not tagged:
         raise ValueError(
             "No tagged meshes found (gfmodel_submesh_index); import via GFModel Archive and select a mesh object"
@@ -52,6 +56,8 @@ def _patch_pack_grow_buffers_tris(
         disallow_new_mesh_sections=bool(disallow_new_mesh_sections),
         allow_palette_rebuild=bool(allow_palette_rebuild),
         allow_palette_split=bool(allow_palette_split),
+        palette_append_only=bool(palette_append_only),
+        palette_prune_unused=bool(palette_prune_unused),
     )
     out = write_gf_model_pack_low(
         pack,
@@ -85,7 +91,7 @@ def _collect_tris_for_material(
             obj.update_from_editmode()
     except Exception:
         pass
-    mesh: bpy.types.Mesh = obj.data                            
+    mesh: bpy.types.Mesh = obj.data
     try:
         mesh.calc_loop_triangles()
     except Exception:
@@ -98,7 +104,7 @@ def _collect_tris_for_material(
         return s
 
     target = base(str(material_name))
-                                                                                     
+
     out: List[Tuple[int, int, int, int, int, int]] = []
     for tri in getattr(mesh, "loop_triangles", []) or []:
         try:
@@ -130,7 +136,7 @@ def _collect_tris_all(
             obj.update_from_editmode()
     except Exception:
         pass
-    mesh: bpy.types.Mesh = obj.data                            
+    mesh: bpy.types.Mesh = obj.data
     try:
         mesh.calc_loop_triangles()
     except Exception:

@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -25,6 +26,7 @@ def patch_gfmot_with_rekey_changed_frames(
     pos_tol: float = 1e-4,
     scale_tol: float = 1e-4,
 ) -> bytes:
+
     fc = int(frames_count)
     if fc <= 0:
         return bytes(src_gfmot_bytes)
@@ -155,7 +157,7 @@ def patch_gfmot_with_rekey_changed_frames(
             out += struct.pack('<HH', int(v_u) & 0xFFFF, int(s_u) & 0xFFFF)
         return bytes(out)
 
-                                                  
+
     base = rewrite_gfmot_section1_values(
         src_bytes=bytes(src_gfmot_bytes),
         frames_count=int(fc),
@@ -167,7 +169,7 @@ def patch_gfmot_with_rekey_changed_frames(
     new_by_name = {str(b.name): b for b in list(new_bones)}
     src_by_name = {str(b.name): b for b in list(getattr(src_motion, 'bones', []) or [])}
 
-                                               
+
     chan_keys = ['sx','sy','sz','rx','ry','rz','tx','ty','tz']
 
     def _dense_val(bt: _GFMotBoneTransform, ch: str, frame: int) -> float:
@@ -193,7 +195,7 @@ def patch_gfmot_with_rekey_changed_frames(
         name = str(lay.name)
         src_bt = src_by_name.get(name)
         new_bt = new_by_name.get(name)
-                                                             
+
         if src_bt is None or new_bt is None:
             payload = b''.join(lay.channel_bytes)
             out_bone_blocks.append(struct.pack('<II', int(lay.flags), int(len(payload))) + payload)
@@ -201,7 +203,7 @@ def patch_gfmot_with_rekey_changed_frames(
 
         rekey_frames_by_ci: dict[int, List[int]] = {}
 
-                                                                                  
+
         for ci, ch in enumerate(chan_keys):
             mode = int(lay.channel_modes[ci]) if ci < len(lay.channel_modes) else 0
             if mode not in (3, 4, 5):
@@ -209,7 +211,7 @@ def patch_gfmot_with_rekey_changed_frames(
 
             orig_frames = set(_orig_key_frames(src_bt, ch))
 
-                                                                                                          
+
             consider_frames: list[int] | None = None
             if keyed_frames_by_bone is not None:
                 bf = keyed_frames_by_bone.get(name) or {}
@@ -220,7 +222,7 @@ def patch_gfmot_with_rekey_changed_frames(
                 else:
                     consider_frames = sorted(int(x) for x in (bf.get('rot') or set()) if 0 <= int(x) <= fc)
 
-                                     
+
             changed: List[int] = []
             frame_iter = consider_frames if consider_frames is not None else range(int(fc))
             for fr in frame_iter:
@@ -230,28 +232,28 @@ def patch_gfmot_with_rekey_changed_frames(
                 nv = float(_dense_val(new_bt, ch, int(fr)))
                 tol = float(scale_tol if ch in ('sx','sy','sz') else pos_tol if ch in ('tx','ty','tz') else rot_tol)
                 if abs(nv - ov) > tol:
-                                                                                    
+
                     if int(fr) not in orig_frames:
                         changed.append(int(fr))
 
             if changed:
                 any_rekey = True
-                                                             
+
                 frames = set(int(x) for x in orig_frames)
                 frames.update(int(x) for x in changed)
                 frames.add(0)
-                                                                      
+
                 if fc in orig_frames or (max(frames) < fc):
                     frames.add(int(fc))
                 rekey_frames_by_ci[int(ci)] = sorted(frames)
 
         if not rekey_frames_by_ci:
-                                                                                                    
+
             payload = b''.join(lay.channel_bytes)
             out_bone_blocks.append(struct.pack('<II', int(lay.flags), int(len(payload))) + payload)
             continue
 
-                                                                                       
+
         flags = int(lay.flags) & 0xFFFFFFFF
         chan_out: List[bytes] = []
         for ci, ch in enumerate(chan_keys):
@@ -259,7 +261,7 @@ def patch_gfmot_with_rekey_changed_frames(
                 frs = list(rekey_frames_by_ci[ci])
                 float_keys = (int(lay.flags) & 1) != 0
 
-                                                                                                        
+
                 if float_keys:
                     old_frames, old_vals, old_slopes = _parse_float_channel(
                         lay.channel_bytes[ci] if ci < len(lay.channel_bytes) else b'',
@@ -304,7 +306,7 @@ def patch_gfmot_with_rekey_changed_frames(
                             v = float(_dense_val(new_bt, ch, 0 if bool(getattr(src_motion, 'is_looping', False)) else int(fc) - 1))
                         else:
                             v = float(_dense_val(new_bt, ch, int(fr)))
-                                                                        
+
                         s = 0.0
                         out_vu16.append(_encode_u16(float(v), float(vscale), float(voff)))
                         out_su16.append(_encode_u16(float(s), float(sscale), float(soff)))
@@ -319,7 +321,7 @@ def patch_gfmot_with_rekey_changed_frames(
                         su16=out_su16,
                     )
                 chan_out.append(chan_bytes)
-                                                                                                             
+
 
             else:
                 raw = lay.channel_bytes[ci] if ci < len(lay.channel_bytes) else b''

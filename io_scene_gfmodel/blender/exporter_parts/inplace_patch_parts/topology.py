@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -27,6 +28,7 @@ from ..vertex_pack import (
 def _pica_iter_cmds_with_param_indices(
     cmds: Sequence[int],
 ) -> Iterable[Tuple[int, int, List[int]]]:
+
     i = 0
     n = int(len(cmds))
     while i + 1 < n:
@@ -39,7 +41,7 @@ def _pica_iter_cmds_with_param_indices(
         extra = int((cmd >> 20) & 0x7FF)
         consecutive = (cmd >> 31) != 0
         if consecutive:
-                                                           
+
             for j in range(extra + 1):
                 yield (int(reg + j), int(start_param_index + j), [int(param0)])
                 if j < extra:
@@ -66,6 +68,7 @@ def _patch_pack_topology_tris_in_place(
     *,
     tagged: Dict[int, bpy.types.Object],
 ) -> Tuple[bytes, int]:
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -73,7 +76,7 @@ def _patch_pack_topology_tris_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
 
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
@@ -85,9 +88,9 @@ def _patch_pack_topology_tris_in_place(
                 f"Topology in-place patch currently supports primitive_mode=0 (Triangles) only; submesh {sm.name!r} has {int(sm.primitive_mode)}"
             )
 
-                                           
+
         try:
-            mesh.calc_loop_triangles()                              
+            mesh.calc_loop_triangles()
         except Exception:
             pass
         tris = getattr(mesh, "loop_triangles", None)
@@ -130,7 +133,7 @@ def _patch_pack_topology_tris_in_place(
                     f"Index too large for u8 index buffer for submesh {sm.name!r}: {i}"
                 )
 
-                        
+
         if elem_size == 2:
             new_bytes = b"".join(struct.pack("<H", int(i)) for i in new_indices)
             zero = b"\x00\x00"
@@ -143,14 +146,14 @@ def _patch_pack_topology_tris_in_place(
             raise ValueError("Index write out of range (bad offsets/length)")
 
         old_bytes = bytes(out[base : base + idx_len])
-                                                                   
+
         out[base : base + idx_len] = new_bytes + (
             zero * (max_indices - len(new_indices))
         )
         if bytes(out[base : base + idx_len]) != old_bytes:
             changed += 1
 
-                                                          
+
         idx_count_off = int(getattr(sm, "index_count_off", 0) or 0)
         if idx_count_off <= 0 or idx_count_off + 4 > len(out):
             raise ValueError(
@@ -158,11 +161,11 @@ def _patch_pack_topology_tris_in_place(
             )
         old_decl = struct.unpack_from("<i", out, idx_count_off)[0]
         if int(old_decl) != int(len(sm.indices)):
-                                                                                          
+
             pass
         struct.pack_into("<i", out, idx_count_off, int(len(new_indices)))
 
-                                                                                                   
+
         index_cmds_off = int(getattr(sm, "index_cmds_off", 0) or 0)
         index_cmds_len_u32 = int(getattr(sm, "index_cmds_len_u32", 0) or 0)
         if index_cmds_off <= 0 or index_cmds_len_u32 <= 0:

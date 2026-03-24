@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -75,6 +76,7 @@ def rewrite_gfmot_section1_values(
     frames_count: int,
     bones: Sequence[_GFMotBoneTransform],
 ) -> bytes:
+
     src = bytes(src_bytes)
     magic, sects = _parse_section_table(src)
     if magic != _GFMOT_MAGIC:
@@ -93,7 +95,7 @@ def rewrite_gfmot_section1_values(
     names = [r.byte_len_string() for _ in range(int(bone_names_count))]
     r.seek(int(names_start) + int(bone_names_len))
 
-                                                        
+
     want_n = int(frames_count)
     by_name = {str(b.name): b for b in bones}
 
@@ -132,7 +134,7 @@ def rewrite_gfmot_section1_values(
 
     for bn in names:
         bt_vals = dense_by_name.get(str(bn))
-                                                                            
+
         flags_off = r.tell
         flags = r.u32()
         length = r.u32()
@@ -155,7 +157,7 @@ def rewrite_gfmot_section1_values(
                 r.align(4)
 
                 if (f & 1) != 0:
-                                             
+
                     for ki in range(int(kf_count)):
                         v_off = r.tell
                         _v = r.f32()
@@ -165,7 +167,7 @@ def rewrite_gfmot_section1_values(
                             if 0 <= fr < want_n:
                                 r.write_f32_at(v_off, float(bt_vals[ck][fr]))
                 else:
-                                                                                 
+
                     value_scale = float(r.f32())
                     value_off = float(r.f32())
                     _slope_scale = float(r.f32())
@@ -186,12 +188,12 @@ def rewrite_gfmot_section1_values(
                                     u = 65535
                                 r.write_u16_at(v_u16_off, u)
             else:
-                                                              
+
                 pass
 
             f >>= 3
 
-                                                                              
+
         if r.tell != bone_end:
             r.seek(bone_end)
 
@@ -269,14 +271,14 @@ def _parse_section1_layout(src_bytes: bytes, *, frames_count: int) -> tuple[byte
                     for _ in range(int(kf_count)):
                         _ = r.u16(); _ = r.u16()
             else:
-                                
+
                 pass
 
             chan_end = int(r.tell)
             channel_bytes.append(bytes(b[chan_start:chan_end]))
             f >>= 3
 
-                                     
+
         r.seek(int(bone_payload_end))
 
         layouts.append(

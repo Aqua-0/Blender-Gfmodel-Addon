@@ -1,4 +1,4 @@
-
+"""Core GFModel import entry points (no a094 group logic)."""
 
 from __future__ import annotations
 
@@ -118,15 +118,15 @@ def _import_model_to_blender(
     except Exception:
         pass
 
-
-
+    # If an archive import prepared a patch plan, attach it to the newly created collection
+    # (so multiple imported GFModels can coexist and be patched back independently).
     try:
         plan_json = str(
             ctx.scene.get("gfmodel_pending_patch_plan_json", "") or ""
         ).strip()
         if plan_json:
             coll["gfmodel_patch_plan_json"] = plan_json
-
+            # Consume: only the first created collection of this import should claim the plan.
             try:
                 del ctx.scene["gfmodel_pending_patch_plan_json"]
             except Exception:
@@ -280,23 +280,8 @@ def _import_model_to_blender(
         mod = obj.modifiers.new(name="Armature", type="ARMATURE")
         mod.object = arm_obj
 
-
-
-        palette = list(getattr(sm, 'bone_indices', []) or [])
-        if palette:
-            seen = set()
-            for bi in palette:
-                try:
-                    skel_idx = int(bi)
-                except Exception:
-                    continue
-                if skel_idx < 0 or skel_idx >= len(model.skeleton):
-                    continue
-                bone_name = model.skeleton[skel_idx].name
-                if not bone_name or bone_name in seen:
-                    continue
-                seen.add(bone_name)
-                obj.vertex_groups.get(bone_name) or obj.vertex_groups.new(name=bone_name)
+        for bone in model.skeleton:
+            obj.vertex_groups.get(bone.name) or obj.vertex_groups.new(name=bone.name)
 
         palette = sm.bone_indices
         for vi, wlist in enumerate(weights):
@@ -838,7 +823,11 @@ def _import_gfmodel_bytes_with_extras(
     axis_forward: str = "-Z",
     axis_up: str = "Y",
 ) -> bool:
+    """Import GFModel bytes while also scanning sibling blobs for textures/motions/shaders.
 
+    Intended for bundle assets like USUM `a094` where a selected GFModel blob has
+    textures and/or motions stored in adjacent GARC members.
+    """
 
     try:
         context.scene["gfmodel_last_import_source"] = str(source_path)

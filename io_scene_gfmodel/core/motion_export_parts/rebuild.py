@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -13,7 +14,8 @@ def build_bone_section(
     eps: float = 1e-6,
 ) -> bytes:
 
-                  
+
+
     name_bytes: List[bytes] = []
     for b in bones:
         nm = (b.name or '').encode('ascii', 'replace')
@@ -22,7 +24,7 @@ def build_bone_section(
         name_bytes.append(struct.pack('<B', len(nm)) + nm)
 
     names_blob = b''.join(name_bytes)
-                                                                         
+
     names_blob_padded = names_blob
     if (len(names_blob_padded) & 3) != 0:
         names_blob_padded += b"\x00" * (4 - (len(names_blob_padded) & 3))
@@ -31,9 +33,9 @@ def build_bone_section(
     out += struct.pack('<iI', int(len(bones)), int(len(names_blob_padded)))
     out += names_blob_padded
 
-                            
+
     for b in bones:
-                            
+
         chan_values = [
             [kf.value for kf in b.sx],
             [kf.value for kf in b.sy],
@@ -64,7 +66,7 @@ def build_bone_section(
         if not bool(getattr(b, 'is_axis_angle', True)):
             flags |= 0x80000000
 
-                              
+
         bone_payload = bytearray()
         for payload in payloads:
             bone_payload += payload
@@ -80,6 +82,7 @@ def rebuild_gfmot_with_replaced_bones(
     src_bytes: bytes,
     new_bone_section: bytes,
 ) -> bytes:
+
     src = bytes(src_bytes)
     magic, sects = _parse_section_table(src)
     if magic != _GFMOT_MAGIC:
@@ -87,7 +90,7 @@ def rebuild_gfmot_with_replaced_bones(
     if not sects:
         raise ValueError('gfmot has no sections')
 
-                                                                            
+
     payloads: List[Tuple[int, bytes]] = []
     for i, s in enumerate(sects):
         if s.addr < 0 or s.addr + s.length > len(src):
@@ -97,13 +100,13 @@ def rebuild_gfmot_with_replaced_bones(
         else:
             payloads.append((int(s.name), src[int(s.addr) : int(s.addr + s.length)]))
 
-                                               
+
     out = bytearray()
     out += struct.pack('<II', _GFMOT_MAGIC, int(len(payloads)))
     table_off = len(out)
     out += b'\x00' * (12 * int(len(payloads)))
 
-                     
+
     sect_meta: List[Tuple[int, int, int]] = []
     for name, payload in payloads:
         out_off = _align_up(len(out), 4)
@@ -114,7 +117,7 @@ def rebuild_gfmot_with_replaced_bones(
         length = int(len(payload))
         sect_meta.append((int(name), int(length), int(addr)))
 
-                  
+
     for i, (name, length, addr) in enumerate(sect_meta):
         struct.pack_into('<III', out, table_off + 12 * i, int(name), int(length), int(addr))
 

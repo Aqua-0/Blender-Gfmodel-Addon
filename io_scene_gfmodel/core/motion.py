@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -85,7 +86,7 @@ def _gf_read_vec3(r: _BinReader) -> Vector:
 
 def _parse_gf_motion(data: bytes, index: int) -> _GFMotion:
     r = _BinReader(data)
-    _magic = r.u32()              
+    _magic = r.u32()
     section_count = r.u32()
     sections: List[Tuple[int, int, int]] = []
     for _ in range(section_count):
@@ -108,7 +109,7 @@ def _parse_gf_motion(data: bytes, index: int) -> _GFMotion:
     unknown_sections: List[Tuple[int, int, int, bytes]] = []
 
     for sect_name, length, addr in sections[1:]:
-        if sect_name == 1:                
+        if sect_name == 1:
             r.seek(addr)
             bone_names_count = r.s32()
             bone_names_len = r.u32()
@@ -119,9 +120,9 @@ def _parse_gf_motion(data: bytes, index: int) -> _GFMotion:
                 bone = _parse_gf_mot_bone_transform(data, r.tell, bn, frames_count)
                 bones.append(bone)
                 r.seek(getattr(bone, "_end_offset"))
-        elif sect_name == 3:                
+        elif sect_name == 3:
             uv_transforms.extend(_parse_gf_material_mot(data, addr, frames_count))
-        elif sect_name == 6:                  
+        elif sect_name == 6:
             r.seek(addr)
             mesh_names_count = r.s32()
             mesh_names_len = r.u32()

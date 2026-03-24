@@ -1,4 +1,4 @@
-
+"""Core GFModel import entry points (no a094 group logic)."""
 
 from __future__ import annotations
 
@@ -118,15 +118,15 @@ def _import_model_to_blender(
     except Exception:
         pass
 
-
-
+    # If an archive import prepared a patch plan, attach it to the newly created collection
+    # (so multiple imported GFModels can coexist and be patched back independently).
     try:
         plan_json = str(
             ctx.scene.get("gfmodel_pending_patch_plan_json", "") or ""
         ).strip()
         if plan_json:
             coll["gfmodel_patch_plan_json"] = plan_json
-
+            # Consume: only the first created collection of this import should claim the plan.
             try:
                 del ctx.scene["gfmodel_pending_patch_plan_json"]
             except Exception:
@@ -280,23 +280,8 @@ def _import_model_to_blender(
         mod = obj.modifiers.new(name="Armature", type="ARMATURE")
         mod.object = arm_obj
 
-
-
-        palette = list(getattr(sm, 'bone_indices', []) or [])
-        if palette:
-            seen = set()
-            for bi in palette:
-                try:
-                    skel_idx = int(bi)
-                except Exception:
-                    continue
-                if skel_idx < 0 or skel_idx >= len(model.skeleton):
-                    continue
-                bone_name = model.skeleton[skel_idx].name
-                if not bone_name or bone_name in seen:
-                    continue
-                seen.add(bone_name)
-                obj.vertex_groups.get(bone_name) or obj.vertex_groups.new(name=bone_name)
+        for bone in model.skeleton:
+            obj.vertex_groups.get(bone.name) or obj.vertex_groups.new(name=bone.name)
 
         palette = sm.bone_indices
         for vi, wlist in enumerate(weights):
@@ -398,151 +383,132 @@ def _import_model_to_blender(
             for pb in arm_obj.pose.bones:
                 pb.rotation_mode = "QUATERNION"
 
-            frames = int(mot.frames_count)
-            frame_list = [float(i) for i in range(frames)]
-
             bt_by_name = {bt.name: bt for bt in mot.bones}
-            name_to_i = {n: i for i, n in enumerate(bone_order)}
-            rest_bones = [rest_by_name.get(n) for n in bone_order]
-            parents = [rb.parent if rb else None for rb in rest_bones]
-            uses_ssc = [_bone_uses_ssc(int(rb.flags)) if rb else False for rb in rest_bones]
-            bt_list = [bt_by_name.get(n) for n in bone_order]
 
-            rest_inv_by_name: Dict[str, Matrix] = {}
-            rest_inv_list: List[Matrix] = []
-            for n in bone_order:
-                rl = rest_rel_by_name.get(n)
-                if rl is None:
-                    ri = Matrix.Identity(4)
-                else:
-                    try:
-                        ri = rl.inverted()
-                    except Exception:
-                        ri = Matrix.Identity(4)
-                rest_inv_by_name[n] = ri
-                rest_inv_list.append(ri)
-
-            def _bt_has_keys(_bt: object) -> bool:
-                if _bt is None:
-                    return False
-                for _attr in ('sx', 'sy', 'sz', 'tx', 'ty', 'tz', 'rx', 'ry', 'rz'):
-                    _ch = getattr(_bt, _attr, None)
-                    if not _ch:
+            for frame in range(mot.frames_count):
+                bpy.context.scene.frame_set(frame)
+                pose_mats: Dict[str, Matrix] = {}
+                for name in bone_order:
+                    pb = arm_obj.pose.bones.get(name)
+                    rb = rest_by_name.get(name)
+                    if pb is None or rb is None:
                         continue
-                    try:
-                        return len(_ch) > 0
-                    except Exception:
-                        return True
-                return False
+                    bt = bt_by_name.get(name)
 
-            animated_idx = [i for i, _bt in enumerate(bt_list) if _bt_has_keys(_bt)]
-            animated_names = [bone_order[i] for i in animated_idx]
+                    sx = _mot_eval(bt.sx, frame, rb.scale.x) if bt else rb.scale.x
+                    sy = _mot_eval(bt.sy, frame, rb.scale.y) if bt else rb.scale.y
+                    sz = _mot_eval(bt.sz, frame, rb.scale.z) if bt else rb.scale.z
 
-            dbg_enabled = bool(getattr(ctx.scene, 'gfmodel_debug_animations', False))
-            dbg_motion = int(getattr(ctx.scene, 'gfmodel_debug_motion', -1))
-            dbg_name = str(getattr(ctx.scene, 'gfmodel_debug_bone', 'Waist'))
-            dbg_active = dbg_enabled and (dbg_motion < 0 or dbg_motion == mot.index)
+                    tx = (
+                        _mot_eval(bt.tx, frame, rb.translation.x)
+                        if bt
+                        else rb.translation.x
+                    )
+                    ty = (
+                        _mot_eval(bt.ty, frame, rb.translation.y)
+                        if bt
+                        else rb.translation.y
+                    )
+                    tz = (
+                        _mot_eval(bt.tz, frame, rb.translation.z)
+                        if bt
+                        else rb.translation.z
+                    )
 
-            def _eval_pose_local(i: int, frame: int) -> Matrix:
-                rb = rest_bones[i]
-                bt = bt_list[i]
-                if rb is None:
-                    return Matrix.Identity(4)
+                    rx = _mot_eval(bt.rx, frame, rb.rotation.x) if bt else rb.rotation.x
+                    ry = _mot_eval(bt.ry, frame, rb.rotation.y) if bt else rb.rotation.y
+                    rz = _mot_eval(bt.rz, frame, rb.rotation.z) if bt else rb.rotation.z
 
-                sx = _mot_eval(bt.sx, frame, rb.scale.x) if bt else rb.scale.x
-                sy = _mot_eval(bt.sy, frame, rb.scale.y) if bt else rb.scale.y
-                sz = _mot_eval(bt.sz, frame, rb.scale.z) if bt else rb.scale.z
-
-                tx = _mot_eval(bt.tx, frame, rb.translation.x) if bt else rb.translation.x
-                ty = _mot_eval(bt.ty, frame, rb.translation.y) if bt else rb.translation.y
-                tz = _mot_eval(bt.tz, frame, rb.translation.z) if bt else rb.translation.z
-
-                rx = _mot_eval(bt.rx, frame, rb.rotation.x) if bt else rb.rotation.x
-                ry = _mot_eval(bt.ry, frame, rb.rotation.y) if bt else rb.rotation.y
-                rz = _mot_eval(bt.rz, frame, rb.rotation.z) if bt else rb.rotation.z
-
-                if bt and getattr(bt, 'is_axis_angle', False):
-                    axis = Vector((rx, ry, rz))
-                    angle = axis.length * 2.0
-                    if angle > 0:
-                        q_cur = Quaternion(axis.normalized(), angle)
+                    if bt and bt.is_axis_angle:
+                        axis = Vector((rx, ry, rz))
+                        angle = axis.length * 2.0
+                        if angle > 0:
+                            q_cur = Quaternion(axis.normalized(), angle)
+                        else:
+                            q_cur = Quaternion((1.0, 0.0, 0.0, 0.0))
                     else:
-                        q_cur = Quaternion((1.0, 0.0, 0.0, 0.0))
-                else:
-                    q_cur = _euler_to_quat_xyz(Vector((rx, ry, rz)))
+                        q_cur = _euler_to_quat_xyz(Vector((rx, ry, rz)))
 
-                q_cur_t = _transform_quat_basis(q_cur, conv3)
-                r_anim = q_cur_t.to_matrix().to_4x4()
-                s_anim = Matrix.Diagonal(Vector((sx, sy, sz, 1.0)))
+                    q_cur_t = _transform_quat_basis(q_cur, conv3)
+                    t_anim = Matrix.Translation(
+                        conv @ (Vector((tx, ty, tz)) * global_scale)
+                    )
+                    r_anim = q_cur_t.to_matrix().to_4x4()
+                    s_anim = Matrix.Diagonal(Vector((sx, sy, sz, 1.0)))
+                    local_mat = t_anim @ r_anim @ s_anim
 
-                if uses_ssc[i] and parents[i]:
-                    pi = name_to_i.get(parents[i])
-                    prb = rest_bones[pi] if pi is not None else None
-                    pbt = bt_list[pi] if pi is not None else None
-                    psx = _mot_eval(pbt.sx, frame, prb.scale.x) if (pbt and prb) else (prb.scale.x if prb else 1.0)
-                    psy = _mot_eval(pbt.sy, frame, prb.scale.y) if (pbt and prb) else (prb.scale.y if prb else 1.0)
-                    psz = _mot_eval(pbt.sz, frame, prb.scale.z) if (pbt and prb) else (prb.scale.z if prb else 1.0)
+                    parent_name = rb.parent
+                    if parent_name and parent_name in pose_mats:
+                        if _bone_uses_ssc(int(rb.flags)):
+                            prb = rest_by_name.get(parent_name)
+                            pbt = bt_by_name.get(parent_name)
+                            psx = (
+                                _mot_eval(pbt.sx, frame, prb.scale.x)
+                                if (pbt and prb)
+                                else (prb.scale.x if prb else 1.0)
+                            )
+                            psy = (
+                                _mot_eval(pbt.sy, frame, prb.scale.y)
+                                if (pbt and prb)
+                                else (prb.scale.y if prb else 1.0)
+                            )
+                            psz = (
+                                _mot_eval(pbt.sz, frame, prb.scale.z)
+                                if (pbt and prb)
+                                else (prb.scale.z if prb else 1.0)
+                            )
 
-                    inv_psx = 1.0 / psx if psx != 0 else 0.0
-                    inv_psy = 1.0 / psy if psy != 0 else 0.0
-                    inv_psz = 1.0 / psz if psz != 0 else 0.0
-                    inv_s_parent = Matrix.Diagonal(Vector((inv_psx, inv_psy, inv_psz, 1.0)))
+                            inv_psx = 1.0 / psx if psx != 0 else 0.0
+                            inv_psy = 1.0 / psy if psy != 0 else 0.0
+                            inv_psz = 1.0 / psz if psz != 0 else 0.0
+                            inv_s_parent = Matrix.Diagonal(
+                                Vector((inv_psx, inv_psy, inv_psz, 1.0))
+                            )
 
-                    t_scaled = Vector((tx * psx, ty * psy, tz * psz))
-                    t_anim = Matrix.Translation(conv @ (t_scaled * global_scale))
-                    local_mat_ssc = t_anim @ r_anim @ s_anim
-                    return inv_s_parent @ local_mat_ssc
+                            t_scaled = Vector((tx * psx, ty * psy, tz * psz))
+                            t_anim = Matrix.Translation(
+                                conv @ (t_scaled * global_scale)
+                            )
+                            local_mat_ssc = t_anim @ r_anim @ s_anim
 
-                t_anim = Matrix.Translation(conv @ (Vector((tx, ty, tz)) * global_scale))
-                return t_anim @ r_anim @ s_anim
+                            pose_mat = (
+                                pose_mats[parent_name] @ inv_s_parent @ local_mat_ssc
+                            )
+                        else:
+                            pose_mat = pose_mats[parent_name] @ local_mat
+                    else:
+                        pose_mat = local_mat
 
-            loc_by_bone = {name: ([0.0] * frames, [0.0] * frames, [0.0] * frames) for name in animated_names}
-            rot_by_bone = {name: ([1.0] * frames, [0.0] * frames, [0.0] * frames, [0.0] * frames) for name in animated_names}
-            sca_by_bone = {name: ([1.0] * frames, [1.0] * frames, [1.0] * frames) for name in animated_names}
+                    pose_mats[name] = pose_mat
 
-            for frame in range(frames):
-                for i in animated_idx:
-                    name = bone_order[i]
-                    pose_local = _eval_pose_local(i, frame)
-                    basis = rest_inv_list[i] @ pose_local
-                    loc, rot, sca = basis.decompose()
-                    rot = rot.normalized()
+                    if (
+                        rb.parent
+                        and rb.parent in pose_mats
+                        and rb.parent in rest_abs_by_name
+                    ):
+                        pose_local = pose_mats[rb.parent].inverted() @ pose_mat
+                    else:
+                        pose_local = pose_mat
+                    rest_local = rest_rel_by_name.get(name)
+                    if rest_local is None:
+                        rest_local = pb.bone.matrix_local.copy()
+                    pb.matrix_basis = rest_local.inverted() @ pose_local
+                    pb.keyframe_insert(data_path="location", frame=frame)
+                    pb.keyframe_insert(data_path="rotation_quaternion", frame=frame)
+                    pb.keyframe_insert(data_path="scale", frame=frame)
 
-                    lx, ly, lz = loc_by_bone[name]
-                    rw, rxv, ryv, rzv = rot_by_bone[name]
-                    sxv, syv, szv = sca_by_bone[name]
-
-                    lx[frame] = float(loc.x)
-                    ly[frame] = float(loc.y)
-                    lz[frame] = float(loc.z)
-                    rw[frame] = float(rot.w)
-                    rxv[frame] = float(rot.x)
-                    ryv[frame] = float(rot.y)
-                    rzv[frame] = float(rot.z)
-                    sxv[frame] = float(sca.x)
-                    syv[frame] = float(sca.y)
-                    szv[frame] = float(sca.z)
-
-                if dbg_active and frame < 8:
-                    di = name_to_i.get(dbg_name)
-                    if di is not None:
-                        abs_cache: Dict[int, Matrix] = {}
-                        def _eval_abs(j: int) -> Matrix:
-                            if j in abs_cache:
-                                return abs_cache[j]
-                            pj_name = parents[j]
-                            if pj_name:
-                                pj = name_to_i.get(pj_name)
-                            else:
-                                pj = None
-                            local = _eval_pose_local(j, frame)
-                            if pj is None:
-                                m = local
-                            else:
-                                m = _eval_abs(pj) @ local
-                            abs_cache[j] = m
-                            return m
-                        m = _eval_abs(di)
+                dbg_enabled = bool(
+                    getattr(ctx.scene, "gfmodel_debug_animations", False)
+                )
+                dbg_motion = int(getattr(ctx.scene, "gfmodel_debug_motion", -1))
+                if (
+                    dbg_enabled
+                    and (dbg_motion < 0 or dbg_motion == mot.index)
+                    and frame < 8
+                ):
+                    dbg_name = getattr(ctx.scene, "gfmodel_debug_bone", "Waist")
+                    m = pose_mats.get(dbg_name)
+                    if m is not None:
                         loc, rot, sca = m.decompose()
                         print(
                             f"[GFModel][AnimDebug] mot={mot.index} frame={frame} bone={dbg_name} "
@@ -551,23 +517,6 @@ def _import_model_to_blender(
                             f"sca=({sca.x:.4f},{sca.y:.4f},{sca.z:.4f})"
                         )
 
-            for name in animated_names:
-                lx, ly, lz = loc_by_bone[name]
-                rw, rxv, ryv, rzv = rot_by_bone[name]
-                sxv, syv, szv = sca_by_bone[name]
-
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'location', 0), frame_list, lx)
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'location', 1), frame_list, ly)
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'location', 2), frame_list, lz)
-
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'rotation_quaternion', 0), frame_list, rw)
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'rotation_quaternion', 1), frame_list, rxv)
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'rotation_quaternion', 2), frame_list, ryv)
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'rotation_quaternion', 3), frame_list, rzv)
-
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'scale', 0), frame_list, sxv)
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'scale', 1), frame_list, syv)
-                _fcurve_write_points(_make_pose_fcurve(action, name, 'scale', 2), frame_list, szv)
         try:
             arm_obj.animation_data.action = None
         except Exception:
@@ -736,21 +685,17 @@ def _import_model_to_blender(
                 obj.animation_data.action = action
                 hide_default = (bool(obj.hide_viewport), bool(obj.hide_render))
 
-                frames = int(mot.frames_count)
-                frame_list = [float(i) for i in range(frames)]
-                hidden = [0.0] * frames
-                for frame in range(frames):
+                for frame in range(mot.frames_count):
+                    bpy.context.scene.frame_set(frame)
                     visible = (
                         bool(track.values[frame])
                         if frame < len(track.values)
                         else bool(track.values[-1])
                     )
-                    hidden[frame] = 0.0 if visible else 1.0
-
-                fc_vp = action.fcurves.new(data_path='hide_viewport')
-                fc_rd = action.fcurves.new(data_path='hide_render')
-                _fcurve_write_points(fc_vp, frame_list, hidden)
-                _fcurve_write_points(fc_rd, frame_list, hidden)
+                    obj.hide_viewport = not visible
+                    obj.hide_render = not visible
+                    obj.keyframe_insert(data_path="hide_viewport", frame=frame)
+                    obj.keyframe_insert(data_path="hide_render", frame=frame)
 
                 obj["gfmodel_has_vis_anims"] = True
                 obj["gfmodel_vis_action"] = action.name
@@ -838,7 +783,11 @@ def _import_gfmodel_bytes_with_extras(
     axis_forward: str = "-Z",
     axis_up: str = "Y",
 ) -> bool:
+    """Import GFModel bytes while also scanning sibling blobs for textures/motions/shaders.
 
+    Intended for bundle assets like USUM `a094` where a selected GFModel blob has
+    textures and/or motions stored in adjacent GARC members.
+    """
 
     try:
         context.scene["gfmodel_last_import_source"] = str(source_path)

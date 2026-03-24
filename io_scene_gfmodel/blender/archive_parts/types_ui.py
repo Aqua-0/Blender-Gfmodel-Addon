@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import os
@@ -116,7 +117,7 @@ class GFModel_UL_archive_entries(bpy.types.UIList):
         ql = query.lower()
 
         want = _parse_search_int(query) if query else None
-                                        
+
         use_names = bool(getattr(context.scene, "gfmodel_archive_show_species_names", False)) or _looks_like_a094_context(context)
 
         for it in items:

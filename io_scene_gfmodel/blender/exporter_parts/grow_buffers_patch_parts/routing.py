@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import copy
@@ -34,12 +35,15 @@ def _route_source_object_to_submesh_slots(
     routing_strategy: str,
     weight_cutoff: float = 0.0,
     conflict_mode: str = "CLAMP_BY_WEIGHT",
+    allow_palette_expand: bool = False,
+    split_across_slots: bool = False,
 ) -> Tuple[
     Dict[int, List[Tuple[int, int, int, int, int, int]]],
     Dict[int, Dict[int, List[Tuple[str, float]]]],
     Dict[str, int],
     Dict[str, List[str]],
 ]:
+
     if src_obj.type != "MESH":
         raise ValueError(f"Source object for {material_name!r} is not a mesh")
     try:
@@ -47,18 +51,18 @@ def _route_source_object_to_submesh_slots(
             src_obj.update_from_editmode()
     except Exception:
         pass
-    src_mesh: bpy.types.Mesh = src_obj.data                            
+    src_mesh: bpy.types.Mesh = src_obj.data
     try:
         src_mesh.calc_loop_triangles()
     except Exception:
         pass
 
-                                        
+
     sk_index_by_name: Dict[str, int] = {
         str(n): int(i) for i, n in enumerate(skeleton_names)
     }
 
-                                                                                 
+
     bones_by_v: List[List[int]] = [[] for _ in range(len(src_mesh.vertices))]
     unknown_bones: Dict[str, None] = {}
     unknown_by_v: List[List[str]] = [[] for _ in range(len(src_mesh.vertices))]
@@ -114,14 +118,18 @@ def _route_source_object_to_submesh_slots(
     palette_list_by_si: Dict[int, List[int]] = {}
     for si in candidates:
         sm = model.submeshes[int(si)]
-        pal_list = [int(bi) for bi in (getattr(sm, "bone_indices", []) or [])]
+        pal_raw = list(getattr(sm, "bone_indices", []) or [])
+        pal_count = int(getattr(sm, "bone_indices_count", 0) or 0)
+        if pal_count > 0:
+            pal_raw = pal_raw[:pal_count]
+        pal_list = [int(bi) for bi in pal_raw]
         pal = {int(bi): None for bi in pal_list}
         palette_by_si[int(si)] = pal
         palette_size_by_si[int(si)] = int(len(pal))
         palette_list_by_si[int(si)] = pal_list
         for bi in pal_list:
             palette_union[int(bi)] = None
-                                                             
+
         for i in range(len(pal_list)):
             a = int(pal_list[i])
             for j in range(i, len(pal_list)):
@@ -131,7 +139,7 @@ def _route_source_object_to_submesh_slots(
                 else:
                     palette_pair_ok[(b, a)] = None
 
-                       
+
     tris_by_si: Dict[int, List[Tuple[int, int, int, int, int, int]]] = {
         int(si): [] for si in candidates
     }
@@ -146,6 +154,156 @@ def _route_source_object_to_submesh_slots(
     dropped_unknown_bones: Dict[str, int] = {}
     dropped_missing_bones: Dict[str, int] = {}
     dropped_conflict_pairs: Dict[str, int] = {}
+
+
+
+    if bool(split_across_slots) or bool(allow_palette_expand):
+        max_palette = 0x1F
+        working_palette_by_si: Dict[int, List[int]] = {}
+        working_set_by_si: Dict[int, Dict[int, None]] = {}
+        for si in candidates:
+            pal = palette_list_by_si.get(int(si), [])
+            uniq: List[int] = []
+            seen = set()
+            for bi in pal:
+                if int(bi) in seen:
+                    continue
+                uniq.append(int(bi))
+                seen.add(int(bi))
+            if not uniq:
+                uniq = [0]
+            working_palette_by_si[int(si)] = list(uniq)
+            working_set_by_si[int(si)] = {int(b): None for b in uniq}
+
+        for tri in getattr(src_mesh, "loop_triangles", []) or []:
+            try:
+                pi = int(getattr(tri, "polygon_index", -1))
+                if 0 <= pi < len(src_mesh.polygons):
+                    poly = src_mesh.polygons[pi]
+                    mi = int(getattr(poly, "material_index", -1))
+                    if 0 <= mi < len(getattr(src_obj, "material_slots", []) or []):
+                        ms = src_obj.material_slots[mi]
+                        bm = getattr(ms, "material", None)
+                        bm_name = str(getattr(bm, "name", "") or "")
+                        if bm_name and _base_mat_name(bm_name) != _base_mat_name(str(material_name)):
+                            continue
+            except Exception:
+                pass
+
+            a, b, c = (int(tri.vertices[0]), int(tri.vertices[1]), int(tri.vertices[2]))
+            la, lb, lc = (int(tri.loops[0]), int(tri.loops[1]), int(tri.loops[2]))
+            tri_ref = (int(a), int(b), int(c), int(la), int(lb), int(lc))
+
+            used = _tri_bones_used(bones_by_v, (a, b, c))
+            if not used:
+                used = [0]
+            used_u = list(dict.fromkeys(int(x) for x in used))
+
+            unk = []
+            for vi in (a, b, c):
+                if 0 <= int(vi) < len(unknown_by_v):
+                    unk.extend(unknown_by_v[int(vi)])
+            if unk:
+                sample = ", ".join(str(x) for x in sorted(set(unk))[:12])
+                raise ValueError(f"Unknown bones in vertex groups (not in skeleton): {sample}")
+
+            if len(used_u) > max_palette:
+                names = []
+                for bi in used_u[:16]:
+                    try:
+                        names.append(str(skeleton_names[int(bi)]))
+                    except Exception:
+                        names.append(str(int(bi)))
+                sample = ", ".join(names)
+                raise ValueError(
+                    f"Triangle uses {len(used_u)} bones (max=31) for material {material_name!r}. "
+                    + (f"Sample: {sample}" if sample else "")
+                )
+
+            eligible: List[int] = []
+            missing_by_si: Dict[int, List[int]] = {}
+            for si in candidates:
+                pal_set = working_set_by_si.get(int(si), {})
+                missing = [int(bi) for bi in used_u if int(bi) not in pal_set]
+                if missing and not bool(allow_palette_expand):
+                    continue
+                if len(pal_set) + len(missing) <= max_palette:
+                    eligible.append(int(si))
+                    missing_by_si[int(si)] = missing
+
+            if not eligible:
+                used_names = []
+                for bi in used_u[:16]:
+                    try:
+                        used_names.append(str(skeleton_names[int(bi)]))
+                    except Exception:
+                        used_names.append(str(int(bi)))
+                sample = ", ".join(used_names)
+                raise ValueError(
+                    f"No existing submesh slot can accept a triangle for material {material_name!r} without exceeding 31 bones. "
+                    + (f"Triangle bones: {sample}" if sample else "")
+                )
+
+            rs = str(routing_strategy or "MOST_SPECIFIC").strip()
+            if rs == "BALANCE":
+                chosen = min(
+                    eligible,
+                    key=lambda si: (
+                        int(assigned_tri_count.get(int(si), 0) or 0),
+                        -sum(1 for b in used_u if int(b) in working_set_by_si.get(int(si), {})),
+                        len(working_set_by_si.get(int(si), {})) + len(missing_by_si.get(int(si), [])),
+                        int(si),
+                    ),
+                )
+            elif rs == "ORIGINAL_ORDER":
+                chosen = None
+                for si in candidates:
+                    if int(si) in set(int(x) for x in eligible):
+                        chosen = int(si)
+                        break
+                if chosen is None:
+                    chosen = int(eligible[0])
+            else:
+
+                chosen = max(
+                    eligible,
+                    key=lambda si: (
+                        sum(1 for b in used_u if int(b) in working_set_by_si.get(int(si), {})),
+                        -len(missing_by_si.get(int(si), [])),
+                        -(len(working_set_by_si.get(int(si), {})) + len(missing_by_si.get(int(si), []))),
+                        -int(assigned_tri_count.get(int(si), 0) or 0),
+                        -int(si),
+                    ),
+                )
+
+            if bool(allow_palette_expand):
+                pal_list = working_palette_by_si.get(int(chosen), [])
+                pal_set = working_set_by_si.get(int(chosen), {})
+                for bi in sorted(missing_by_si.get(int(chosen), [])):
+                    if int(bi) in pal_set:
+                        continue
+                    if len(pal_list) >= max_palette:
+                        break
+                    pal_list.append(int(bi))
+                    pal_set[int(bi)] = None
+                working_palette_by_si[int(chosen)] = pal_list
+                working_set_by_si[int(chosen)] = pal_set
+
+            tris_by_si[int(chosen)].append(tri_ref)
+            assigned_tri_count[int(chosen)] = int(assigned_tri_count[int(chosen)] + 1)
+
+        stats = {
+            "dropped": 0,
+            "dropped_unknown_bones": 0,
+            "dropped_no_slot": 0,
+            "clamped": 0,
+        }
+        extra = {
+            "conflict_mode": "EXPAND_SPLIT",
+            "unknown_bones": [],
+            "palette_sizes": {int(k): int(len(v)) for k, v in working_palette_by_si.items()},
+        }
+        return tris_by_si, weights_override_by_si, stats, extra
 
     def choose_slot(used_bones: List[int]) -> Optional[int]:
         used_set = {int(b): None for b in used_bones}
@@ -166,7 +324,7 @@ def _route_source_object_to_submesh_slots(
             return int(valid[0])
         if routing_strategy == "ORIGINAL_ORDER":
             return int(sorted(valid)[0])
-                               
+
         valid.sort(key=lambda s: (palette_size_by_si.get(int(s), 1 << 30), int(s)))
         return int(valid[0])
 
@@ -218,16 +376,16 @@ def _route_source_object_to_submesh_slots(
             out.append((name, float(w) / s))
         return out
 
-                                                                                     
-                                                                 
+
+
     tri_assigned_si: Dict[int, int] = {}
     tri_verts_by_idx: Dict[int, Tuple[int, int, int]] = {}
     tri_set_by_idx: Dict[int, Tuple[int, int, int]] = {}
     tri_indices_by_v: Dict[int, List[int]] = {}
 
     for tri in getattr(src_mesh, "loop_triangles", []) or []:
-                                                                                            
-                                                                                
+
+
         try:
             pi = int(getattr(tri, "polygon_index", -1))
             if 0 <= pi < len(src_mesh.polygons):
@@ -248,14 +406,14 @@ def _route_source_object_to_submesh_slots(
         tri_ref = (int(a), int(b), int(c), int(la), int(lb), int(lc))
         tri_idx = int(getattr(tri, "index", -1))
         if tri_idx < 0:
-                                                                                      
+
             tri_idx = int(len(tri_verts_by_idx))
         tri_verts_by_idx[int(tri_idx)] = (int(a), int(b), int(c))
         tri_set_by_idx[int(tri_idx)] = tuple(sorted((int(a), int(b), int(c))))
         for vi in (a, b, c):
             tri_indices_by_v.setdefault(int(vi), []).append(int(tri_idx))
         used = _tri_bones_used(bones_by_v, (a, b, c))
-                                                                                      
+
         unk = []
         for vi in (a, b, c):
             if 0 <= int(vi) < len(unknown_by_v):
@@ -269,7 +427,7 @@ def _route_source_object_to_submesh_slots(
             continue
         si = choose_slot(used)
         if si is None:
-                                                                                                   
+
             missing_any: List[int] = [
                 int(bi) for bi in used if int(bi) not in palette_union
             ]
@@ -288,7 +446,7 @@ def _route_source_object_to_submesh_slots(
             else:
                 if mode == "DROP_CONFLICTS":
                     dropped += 1
-                                                                            
+
                     ub = sorted(set(int(bi) for bi in used))
                     pair = None
                     for i in range(len(ub)):
@@ -340,7 +498,7 @@ def _route_source_object_to_submesh_slots(
                         if len(tied) == 1:
                             chosen = int(tied[0])
                         else:
-                                                           
+
                             best_si = None
                             best_score = -1.0
                             for si0 in tied:
@@ -368,7 +526,7 @@ def _route_source_object_to_submesh_slots(
                     assigned_tri_count[int(chosen)] + 1
                 )
                 clamped += 1
-                                                                        
+
                 ub = sorted(set(int(bi) for bi in used))
                 pair = None
                 for i in range(len(ub)):

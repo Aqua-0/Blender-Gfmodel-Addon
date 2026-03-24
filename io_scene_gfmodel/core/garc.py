@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import os
@@ -314,6 +315,7 @@ def rewrite_garc_file(
     replacements: dict[tuple[int, int], bytes],
     pad_size_override: Optional[int] = None,
 ) -> None:
+
     src_path = str(src_path)
     dst_path = str(dst_path)
     src = Path(src_path)
@@ -627,6 +629,7 @@ def rewrite_garc_file_inplace_atomic(
     backup_suffix: str = ".bak",
     pad_size_override: Optional[int] = None,
 ) -> None:
+
     path = str(path)
     if make_backup:
         bak = path + str(backup_suffix)

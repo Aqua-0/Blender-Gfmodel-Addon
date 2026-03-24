@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -30,6 +31,7 @@ def _patch_pack_indices_in_place(
     *,
     tagged: Dict[int, bpy.types.Object],
 ) -> Tuple[bytes, int]:
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -37,7 +39,7 @@ def _patch_pack_indices_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
 
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
@@ -49,9 +51,9 @@ def _patch_pack_indices_in_place(
                 f"Index in-place patch currently supports primitive_mode=0 (Triangles) only; submesh {sm.name!r} has {int(sm.primitive_mode)}"
             )
 
-                                                          
+
         try:
-            mesh.calc_loop_triangles()                              
+            mesh.calc_loop_triangles()
         except Exception:
             pass
         tris = getattr(mesh, "loop_triangles", None)
@@ -91,7 +93,7 @@ def _patch_pack_indices_in_place(
                     f"Index too large for u8 index buffer for submesh {sm.name!r}: {i}"
                 )
 
-                                                                         
+
         raw_len = int(old_count) * int(elem_size)
         if base < 0 or base + raw_len > len(out):
             raise ValueError("Index write out of range (bad offsets/length)")
@@ -106,7 +108,7 @@ def _patch_pack_indices_in_place(
             raise ValueError("Internal error: encoded index byte length mismatch")
         if old_bytes != new_bytes:
             out[base : base + raw_len] = new_bytes
-                                                 
+
             if elem_size == 2:
                 for j in range(old_count):
                     if old_bytes[j * 2 : j * 2 + 2] != new_bytes[j * 2 : j * 2 + 2]:

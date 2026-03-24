@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import os
@@ -142,7 +143,7 @@ def _classify_import_type(data: bytes) -> str:
             return "MODEL"
         if m == 0x15041213:
             return "TEXTURE"
-                                                     
+
     try:
         from ...core.binlinker import looks_like_binlinker
 
@@ -206,6 +207,7 @@ def _looks_like_a094_archive_path(path: str) -> bool:
 def _gather_a094_group_extras(
     archive_path: str, entry_i: int
 ) -> tuple[int, list[dict]]:
+
     garc = _garc_cached(str(archive_path))
     n = len(getattr(garc, "entries", []) or [])
     ei = int(entry_i)

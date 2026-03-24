@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import copy
@@ -42,7 +43,10 @@ def _rewrite_model_blob_grow_buffers_tris(
     disallow_new_mesh_sections: bool = False,
     allow_palette_rebuild: bool = True,
     allow_palette_split: bool = True,
+    palette_append_only: bool = False,
+    palette_prune_unused: bool = False,
 ) -> bytes:
+
     out_model = bytearray(model_blob)
     gf_nrm = gf_from_blender.to_3x3()
     overflow_mesh_parts: Dict[str, List[_GFSubMesh]] = {}
@@ -505,14 +509,44 @@ def _rewrite_model_blob_grow_buffers_tris(
                         if float(w) > 0.0:
                             required.add(int(sk))
 
+                if not required:
+                    required.add(0)
+
                 if allow_palette_rebuild and required:
-                    palette = [sk for sk in palette if int(sk) in required]
-                    palette_set = set(int(sk) for sk in palette)
-                    for sk in sorted(required):
-                        if int(sk) in palette_set:
-                            continue
-                        palette.append(int(sk))
-                        palette_set.add(int(sk))
+                    if palette_append_only and palette_prune_unused:
+                        palette = [sk for sk in palette if int(sk) in required]
+                        palette_set = set(int(sk) for sk in palette)
+
+                    missing = [int(sk) for sk in sorted(required) if int(sk) not in palette_set]
+                    if palette_append_only:
+                        if len(palette) + len(missing) > max_palette:
+                            required_names: List[str] = []
+                            for sk in missing:
+                                if 0 <= int(sk) < len(skeleton_names):
+                                    required_names.append(str(skeleton_names[int(sk)]))
+                                else:
+                                    required_names.append(f"<skel:{int(sk)}>")
+                            sample = ', '.join(required_names[:16])
+                            raise ValueError(
+                                f"Submesh palette overflow for {sm.name!r}: cannot append {len(missing)} new bone(s); "
+                                f"current={len(palette)} max={max_palette}. "
+                                + (
+                                    f"Missing bones (first {min(16, len(required_names))}): {sample}"
+                                    if required_names
+                                    else ''
+                                )
+                            )
+                        for sk in missing:
+                            palette.append(int(sk))
+                            palette_set.add(int(sk))
+                    else:
+                        palette = [sk for sk in palette if int(sk) in required]
+                        palette_set = set(int(sk) for sk in palette)
+                        for sk in sorted(required):
+                            if int(sk) in palette_set:
+                                continue
+                            palette.append(int(sk))
+                            palette_set.add(int(sk))
 
                 if len(palette) > max_palette:
                     if allow_palette_split:

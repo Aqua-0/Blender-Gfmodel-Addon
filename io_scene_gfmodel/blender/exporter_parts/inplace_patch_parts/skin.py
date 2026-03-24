@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -31,6 +32,7 @@ def _patch_pack_skin_in_place(
     tagged: Dict[int, bpy.types.Object],
     skeleton_names: List[str],
 ) -> Tuple[bytes, int, int]:
+
     out = bytearray(pack_src)
     changed = 0
     fallback = 0
@@ -39,7 +41,7 @@ def _patch_pack_skin_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
                 f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -47,7 +49,7 @@ def _patch_pack_skin_in_place(
 
         attr_names = set(int(a.name) for a in (sm.attributes or []))
         if 7 not in attr_names and 8 not in attr_names:
-                                                                
+
             continue
         if not (7 in attr_names and 8 in attr_names):
             raise ValueError(
@@ -111,8 +113,8 @@ def _patch_pack_skin_in_place(
             if s > 0:
                 weights = [max(0.0, w) / s for w in weights]
             else:
-                                                                                                
-                                                                                   
+
+
                 indices[0] = 0
                 weights[0] = 1.0
                 fallback += 1

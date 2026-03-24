@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import os
@@ -17,6 +18,7 @@ from ..core.types import _GFMotBoneTransform, _GFMotKeyFrame
 
 
 def _collect_action_keyed_frames(action: bpy.types.Action, *, frames_count: int) -> Dict[str, Dict[str, set[int]]]:
+
     out: Dict[str, Dict[str, set[int]]] = {}
     fc = int(frames_count)
 
@@ -107,6 +109,7 @@ def _transform_quat_basis(q: Quaternion, conv3: Matrix) -> Quaternion:
 
 
 def _quat_to_log_axis_angle(q: Quaternion) -> Vector:
+
     try:
         qn = Quaternion(q)
         qn.normalize()
@@ -128,12 +131,13 @@ def _quat_to_log_axis_angle(q: Quaternion) -> Vector:
 
 
 def _quat_to_log_near(q: Quaternion, ref: Vector) -> Vector:
+
     try:
         ref_v = Vector(ref)
     except Exception:
         ref_v = Vector((0.0, 0.0, 0.0))
 
-                                                                      
+
     cands: list[Vector] = []
     try:
         qn = Quaternion(q)
@@ -177,7 +181,7 @@ def _sample_action_to_motion_bones(
     conv3 = conv.to_3x3()
     conv_inv = conv.inverted()
 
-                                 
+
     bone_names = [b.name for b in arm_obj.data.bones]
     parent_by_name = {b.name: (b.parent.name if b.parent else "") for b in arm_obj.data.bones}
 
@@ -195,7 +199,7 @@ def _sample_action_to_motion_bones(
 
     bone_order = sorted(bone_names, key=depth)
 
-                                                   
+
     rest_abs_by_name: Dict[str, Matrix] = {}
     rest_rel_by_name: Dict[str, Matrix] = {}
     for b in arm_obj.data.bones:
@@ -217,7 +221,7 @@ def _sample_action_to_motion_bones(
         except Exception:
             flags_by_name[b.name] = 0
 
-                                          
+
     arm_obj.animation_data_create()
     prev_action = arm_obj.animation_data.action
     prev_frame = int(scene.frame_current)
@@ -225,7 +229,7 @@ def _sample_action_to_motion_bones(
     try:
         arm_obj.animation_data.action = action
 
-                                           
+
         vals: Dict[str, Dict[str, List[float]]] = {}
         for bt in src_motion_bones:
             vals[bt.name] = {
@@ -240,7 +244,7 @@ def _sample_action_to_motion_bones(
                 "tz": [],
             }
 
-                                                             
+
         prev_q_by_name: Dict[str, Quaternion] = {}
         for fr in range(int(frames_count)):
             scene.frame_set(int(fr))
@@ -249,7 +253,7 @@ def _sample_action_to_motion_bones(
 
             for name in bone_order:
                 if name not in vals:
-                                                                          
+
                     continue
 
                 pb = arm_obj.pose.bones.get(name)
@@ -278,14 +282,14 @@ def _sample_action_to_motion_bones(
 
                 loc_b, rot_b, sca_b = local_mat.decompose()
 
-                                           
+
                 sca_gf = Vector((float(sca_b.x), float(sca_b.y), float(sca_b.z)))
                 sca_gf_by_name[name] = sca_gf
 
-                                                     
+
                 q_gf = _transform_quat_basis(Quaternion(rot_b), conv3.inverted())
-                                                                                                         
-                                                                                                  
+
+
                 try:
                     src_bt = next((x for x in src_motion_bones if x.name == name), None)
                     if src_bt is not None and bool(getattr(src_bt, 'is_axis_angle', True)):
@@ -315,7 +319,7 @@ def _sample_action_to_motion_bones(
                 except Exception:
                     pass
 
-                                                         
+
                 loc4 = conv_inv @ Vector((float(loc_b.x), float(loc_b.y), float(loc_b.z), 1.0))
                 t_scaled = Vector((float(loc4.x), float(loc4.y), float(loc4.z)))
                 if float(global_scale) != 0.0:
@@ -328,7 +332,7 @@ def _sample_action_to_motion_bones(
                 else:
                     tx, ty, tz = float(t_scaled.x), float(t_scaled.y), float(t_scaled.z)
 
-                                                              
+
                 src_bt = next((x for x in src_motion_bones if x.name == name), None)
                 is_axis = bool(getattr(src_bt, "is_axis_angle", True)) if src_bt else True
                 if is_axis:
@@ -364,14 +368,14 @@ def _sample_action_to_motion_bones(
         for src_bt in src_motion_bones:
             v = vals.get(src_bt.name)
             if v is None:
-                                                            
+
                 out.append(src_bt)
                 continue
             n = int(frames_count)
 
             def mk(vals_list: List[float]) -> List[_GFMotKeyFrame]:
                 if len(vals_list) != n:
-                                              
+
                     return []
                 return [
                     _GFMotKeyFrame(frame=i, value=float(vals_list[i]), slope=0.0)
@@ -556,7 +560,7 @@ class GFModel_OT_patch_selected_action_to_source_motion(bpy.types.Operator):
             self.report({"ERROR"}, f"Write failed: {e}")
             return {"CANCELLED"}
 
-                 
+
         try:
             garc2 = parse_garc_file(str(out_archive))
             entry2 = garc2.read_primary_bytes(int(plan.entry_index))

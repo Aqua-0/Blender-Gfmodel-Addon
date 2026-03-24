@@ -1,7 +1,9 @@
 
+
 from __future__ import annotations
 
 import bpy
+from bpy.props import BoolProperty
 
 
 class VIEW3D_PT_gfmodel_patching(bpy.types.Panel):
@@ -64,7 +66,37 @@ class VIEW3D_PT_gfmodel_patching(bpy.types.Panel):
         ):
             layout.label(text="Select an imported GFModel mesh/armature")
 
+
+
+
+        try:
+            if obj is not None and obj.type == 'MESH':
+                vg_count = int(len(getattr(obj, 'vertex_groups', []) or []))
+                used_groups = None
+                try:
+                    me = getattr(obj, 'data', None)
+                    vs = getattr(me, 'vertices', None)
+                    if vs is not None and len(vs) <= 250000:
+                        used = set()
+                        for v in vs:
+                            for g in getattr(v, 'groups', []) or []:
+                                if float(getattr(g, 'weight', 0.0) or 0.0) > 0.0:
+                                    used.add(int(getattr(g, 'group', -1)))
+                        used_groups = int(len(used))
+                except Exception:
+                    used_groups = None
+
+                if used_groups is None:
+                    layout.label(text=f'Submesh palette (vertex groups): {vg_count}')
+                else:
+                    layout.label(text=f'Submesh palette (vertex groups): {vg_count} (used: {used_groups})')
+
+        except Exception:
+            pass
+
         col = layout.column(align=True)
+        col.prop(scene, 'gfmodel_patch_palette_append_only', text='Append bone palette (no rebuild)')
+        col.prop(scene, 'gfmodel_patch_prune_unused_palette', text='Prune unused bones from palette')
         col.operator(
             "gfmodel.patch_current_scene_grow_buffers_tris", text="Patch (Grow Buffers)"
         )
@@ -100,10 +132,25 @@ _CLASSES = (VIEW3D_PT_gfmodel_patching,)
 
 
 def register() -> None:
+    bpy.types.Scene.gfmodel_patch_palette_append_only = BoolProperty(
+        name='Append Bone Palette (No Rebuild)',
+        default=False,
+        description='When using Robust+Auto-Route, preserve existing palette order and only append newly-used bones (if space allows)',
+    )
+    bpy.types.Scene.gfmodel_patch_prune_unused_palette = BoolProperty(
+        name='Prune Unused Bones From Palette',
+        default=False,
+        description='When rewriting palettes, remove bones that are not referenced by any vertex weights in the patched submesh',
+    )
     for c in _CLASSES:
         bpy.utils.register_class(c)
 
 
 def unregister() -> None:
+    try:
+        del bpy.types.Scene.gfmodel_patch_palette_append_only
+        del bpy.types.Scene.gfmodel_patch_prune_unused_palette
+    except Exception:
+        pass
     for c in reversed(_CLASSES):
         bpy.utils.unregister_class(c)

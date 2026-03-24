@@ -8,12 +8,12 @@ bl_info = {
     "category": "Import-Export",
 }
 
-                                                                           
-                                                                                   
-                                                                
+
+
+
 
 try:
-    import bpy                
+    import bpy
 except ModuleNotFoundError:
 
     def register() -> None:

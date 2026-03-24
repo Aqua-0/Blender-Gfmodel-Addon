@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import bpy
@@ -310,11 +311,39 @@ class EXPORT_SCENE_OT_gfmodel(bpy.types.Operator, ExportHelper):
         description="Internal: patch all imported/tagged submeshes (gfmodel_submesh_index) instead of only the active one",
     )
 
+    grow_buffers_expand_bone_palettes: BoolProperty(
+        name="Grow Buffers Expand Bone Palettes",
+        default=False,
+        options={"HIDDEN"},
+        description="Internal: allow routing to expand submesh bone palettes (up to 31) instead of clamping weights",
+    )
+
+    grow_buffers_split_across_existing_slots: BoolProperty(
+        name="Grow Buffers Split Across Existing Slots",
+        default=False,
+        options={"HIDDEN"},
+        description="Internal: when routing, distribute triangles across existing submesh slots as needed to stay within 31-bone palettes (no new slots)",
+    )
+
     grow_buffers_auto_route_new_meshes: BoolProperty(
         name="Grow Buffers Auto-Route New Meshes",
         default=False,
         options={"HIDDEN"},
         description="Internal: include untagged meshes in the import collection and route their triangles into existing submesh slots by material/palette",
+    )
+
+    grow_buffers_palette_append_only: BoolProperty(
+        name='Grow Buffers Palette Append Only',
+        default=False,
+        options={'HIDDEN'},
+        description='Internal: when rebuilding palettes, preserve existing palette order/indices and only append newly-used bones (errors if no space)',
+    )
+
+    grow_buffers_palette_prune_unused: BoolProperty(
+        name='Grow Buffers Palette Prune Unused',
+        default=False,
+        options={'HIDDEN'},
+        description='Internal: when rewriting palettes, remove bones not referenced by any vertex weights in the patched submesh',
     )
 
     @staticmethod

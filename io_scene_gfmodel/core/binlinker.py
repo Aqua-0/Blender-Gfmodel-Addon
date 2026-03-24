@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -25,7 +26,7 @@ def _align_up(v: int, align: int) -> int:
 class BinLinker:
     signature: int
     file_count: int
-    offsets: Tuple[int, ...]                           
+    offsets: Tuple[int, ...]
 
     def span(self, index: int) -> Tuple[int, int]:
         i = int(index)
@@ -53,9 +54,9 @@ def looks_like_binlinker(data: bytes) -> bool:
     table_len = 4 + (int(file_count) + 1) * 4
     if table_len > len(data):
         return False
-                                                                                        
-                                                                                     
-                                                                          
+
+
+
     first_off = _u32(data, 4)
     if first_off < table_len:
         return False
@@ -86,6 +87,7 @@ def rebuild_with_replaced_data(
     replacement: bytes,
     align_blobs: Optional[int] = None,
 ) -> bytes:
+
     bl = parse_binlinker(data)
     idx = int(index)
     if idx < 0 or idx >= int(bl.file_count):

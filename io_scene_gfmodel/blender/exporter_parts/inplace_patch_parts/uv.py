@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -30,6 +31,7 @@ def _patch_pack_uv0_in_place(
     *,
     tagged: Dict[int, bpy.types.Object],
 ) -> Tuple[bytes, int]:
+
     out = bytearray(pack_src)
     changed = 0
 
@@ -37,7 +39,7 @@ def _patch_pack_uv0_in_place(
         obj = tagged.get(int(submesh_index))
         if obj is None:
             continue
-        mesh: bpy.types.Mesh = obj.data                            
+        mesh: bpy.types.Mesh = obj.data
         if int(len(mesh.vertices)) != int(sm.vertex_count):
             raise ValueError(
                 f"Vertex count mismatch for submesh {sm.name!r}: scene={len(mesh.vertices)} file={sm.vertex_count}"
@@ -49,8 +51,8 @@ def _patch_pack_uv0_in_place(
         if uv_layer is None:
             continue
 
-                                                                                             
-                                                      
+
+
         uv_by_v: List[Optional[Tuple[float, float]]] = [None] * int(len(mesh.vertices))
         try:
             for poly in mesh.polygons:

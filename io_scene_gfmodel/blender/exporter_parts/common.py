@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import struct
@@ -55,6 +56,7 @@ def mesh_tris(mesh: bpy.types.Mesh) -> List[Tuple[int, int, int]]:
 def pica_iter_cmds_with_param_indices(
     cmds: Sequence[int],
 ) -> Iterable[Tuple[int, int, List[int]]]:
+
     i = 0
     n = int(len(cmds))
     while i + 1 < n:
@@ -67,7 +69,7 @@ def pica_iter_cmds_with_param_indices(
         extra = int((cmd >> 20) & 0x7FF)
         consecutive = (cmd >> 31) != 0
         if consecutive:
-                                                           
+
             for j in range(extra + 1):
                 yield (int(reg + j), int(start_param_index + j), [int(param0)])
                 if j < extra:

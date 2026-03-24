@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import os
@@ -230,6 +231,7 @@ def _get_selected_mini_file_bytes(
     *,
     want_decompressed: bool,
 ) -> Tuple[str, int, int, bytes]:
+
     path = str(getattr(context.scene, "gfmodel_archive_path", "")).strip()
     if not path:
         raise ValueError("Set an archive path first")

@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import csv
@@ -84,7 +85,7 @@ def a094_search_blob_for_entry(entry_index: int) -> str:
         entry_end,
     ]
 
-                                                       
+
     if info:
         for k in (
             "model",

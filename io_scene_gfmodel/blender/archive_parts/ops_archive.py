@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import os
@@ -57,6 +58,7 @@ def _import_archive_payload(
     import_textures: bool,
     import_animations: bool,
 ) -> bool:
+
     payload2 = _maybe_lz11(bytes(payload))
 
     auto_a094 = bool(getattr(context.scene, "gfmodel_archive_auto_resolve_a094_group", False))

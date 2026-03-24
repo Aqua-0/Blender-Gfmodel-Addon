@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import copy
@@ -19,6 +20,7 @@ from ..vertex_pack import (
 def _build_uv_seam_split_tris(
     mesh: bpy.types.Mesh,
 ) -> Tuple[int, List[int], List[Tuple[int, Tuple[float, float]]]]:
+
     try:
         mesh.calc_loop_triangles()
     except Exception:
@@ -139,6 +141,7 @@ def build_split_faces_for_submesh(
     obj: bpy.types.Object,
     skeleton_names: List[str],
 ) -> List[_GFSubMesh]:
+
     mesh: bpy.types.Mesh = obj.data
     if int(sm.primitive_mode) != 0:
         raise ValueError(
@@ -178,13 +181,13 @@ def build_split_faces_for_submesh(
     bi_attr = next((a for a in sm.attributes if int(a.name) == 7), None)
     bw_attr = next((a for a in sm.attributes if int(a.name) == 8), None)
 
-                          
-                               
-                       
-     
-                                                                            
-                                                                        
-                                  
+
+
+
+
+
+
+
     has_full_skin = (
         bi_attr is not None
         and bw_attr is not None
